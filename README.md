@@ -1,3 +1,20 @@
+# How to Run
+
+## Backend
+1. Go to Backend directory
+2. Run "npm install"
+3. Run "npm start"
+
+## Frontend
+1. Open another terminal
+2. Go to Frontend directory
+3. Run "npm install"
+4. Run "npm start"
+
+
+
+
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
