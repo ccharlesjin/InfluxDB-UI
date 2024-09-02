@@ -95,17 +95,48 @@ export default function SignIn() {
     setOpen(false);
   };
 
-  const handleSubmit = (event) => {
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    
+    const email = data.get('email');
+    const password = data.get('password');
+  
     console.log({
-      email: data.get('email'),
-      password: data.get('password'),
+      email,
+      password,
     });
+  
     let isValid = validateInputs();
+    
     if (isValid) {
-      console.log("Validation Passed. Proceeding to Dashboard...");
-      navigate('/dashboard'); // jump to the dashboard
+      try {
+        // Send a request to the server for authentication
+        const response = await fetch('http://localhost:5001/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: email,
+            password: password
+          })
+        });
+  
+        const result = await response.json();
+  
+        if (response.ok) {
+          console.log("Login successful. Redirecting to Dashboard...");
+          navigate('/dashboard'); // Jump to the dashboard page
+        } else {
+          console.error("Login failed:", result.message);
+          alert("Login failed: " + result.message);
+        }
+      } catch (error) {
+        console.error("An error occurred during login:", error);
+        alert("An error occurred during login. Please try again later.");
+      }
     }
   };
 
