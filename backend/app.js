@@ -9,9 +9,9 @@ const port = 4000;
 app.use(bodyParser.json());
 
 // InfluxDB connection details
-const token = 'bt_ptEYcdxn62Xmf8p-mKsWP3At-sz9Tfrf06c4lRsOGOSaqnCDvu8V7EYPRrubIXB90Bs-DAVWcWL-IIN3wxg==';
-const org = 'Testing';
-const bucket = 'Retention';
+const token = 'Your Token';
+const org = 'Your Org Name';
+const bucket = 'Your Bucket Name';
 const url = 'http://localhost:8086'; // Assuming InfluxDB is running locally
 
 const influxDB = new InfluxDB({ url, token });
