@@ -1,33 +1,34 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-
-// 时间转换函数
-const convertToUnixTimestamp = (isoString) => {
-  return new Date(isoString).getTime(); // 将 ISO 时间字符串转换为 Unix 时间戳（以毫秒为单位）
-};
+import TimeRangeSelector from './TimeRangeSelector';
 
 function App() {
   const [bucket, setBucket] = useState("test");
-  const [start, setStart] = useState("2023-12-31T13:30:00Z");
-  const [stop, setStop] = useState("2024-01-01T13:29:59Z");
+  // const [start, setStart] = useState("2023-12-31T13:30:00Z");
+  // const [stop, setStop] = useState("2024-01-01T13:29:59Z");
   const [windowPeriod, setWindowPeriod] = useState("10m");
   const [iframeUrl, setIframeUrl] = useState("");
+  const [timeRange, setTimeRange] = useState({ start: null, end: null });
+
+  const handleTimeRangeChange = (range) => {
+    console.log('Selected Time Range:', range);
+    // 在这里你可以将选择的时间范围传递给后端
+    setTimeRange(range);
+  };
 
   const createDashboard = async () => {
     try {
-      // 将 start 和 stop 时间转换为 Unix 时间戳
-      const fromTimestamp = convertToUnixTimestamp(start);
-      const toTimestamp = convertToUnixTimestamp(stop);
-
+      // 使用 Dayjs 对象的 unix() 方法，直接获取 Unix 时间戳
+      const start = timeRange.start.unix() * 1000; // 转换为毫秒
+      const stop = timeRange.end.unix() * 1000;    // 转换为毫秒
+  
       const response = await axios.post('http://localhost:5001/create-dashboard', {
         bucket,
-        start,
-        stop,
         windowPeriod,
-        from: fromTimestamp,
-        to: toTimestamp
+        from: start,
+        to: stop
       });
-
+  
       setIframeUrl(response.data.dashboardUrl);
     } catch (error) {
       console.error('Error creating dashboard:', error);
@@ -41,14 +42,15 @@ function App() {
         <label>Bucket Name:</label>
         <input type="text" value={bucket} onChange={(e) => setBucket(e.target.value)} />
       </div>
-      <div>
-        <label>Start Time (ISO format):</label>
-        <input type="text" value={start} onChange={(e) => setStart(e.target.value)} />
-      </div>
-      <div>
-        <label>Stop Time (ISO format):</label>
-        <input type="text" value={stop} onChange={(e) => setStop(e.target.value)} />
-      </div>
+      <h2>Select Time Range</h2>
+      <TimeRangeSelector onTimeRangeChange={handleTimeRangeChange} />
+      {timeRange.start && timeRange.end && (
+        <div>
+          <h2>Selected Time Range:</h2>
+          <p>Start: {timeRange.start.format('YYYY-MM-DD HH:mm:ss')}</p>
+          <p>End: {timeRange.end.format('YYYY-MM-DD HH:mm:ss')}</p>
+        </div>
+      )}
       <div>
         <label>Window Period:</label>
         <input type="text" value={windowPeriod} onChange={(e) => setWindowPeriod(e.target.value)} />

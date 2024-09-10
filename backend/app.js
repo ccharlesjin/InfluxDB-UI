@@ -136,8 +136,11 @@ app.post('/query', (req, res) => {
 
 app.post('/create-dashboard', async (req, res) => {
   try {
-    const { bucket, start, stop, windowPeriod, from, to } = req.body;
+    const { bucket, windowPeriod, from, to } = req.body;
+    const fromSeconds = Math.floor(from / 1000);  // 转换为秒
+    const toSeconds = Math.floor(to / 1000);      // 转换为秒
 
+    console.log('Creating dashboard with the following params:', { bucket, windowPeriod, from, to, fromSeconds, toSeconds });
     const dashboardData = {
       dashboard: {
         id: null,
@@ -153,13 +156,11 @@ app.post('/create-dashboard', async (req, res) => {
                 refId: 'A',
                 query: `
                 from(bucket: "${bucket}")
-                  |> range(start: ${start}, stop: ${stop})
+                  |> range(start: ${fromSeconds}, stop: ${toSeconds})
                   |> filter(fn: (r) => r["_measurement"] == "sleep_data")
                   |> aggregateWindow(every: ${windowPeriod}, fn: mean, createEmpty: false)
                   |> yield(name: "mean")
                 `,
-                from: from, // 发送的 Unix 时间戳
-                to: to     // 发送的 Unix 时间戳
               },
             ],
             gridPos: {
@@ -181,12 +182,10 @@ app.post('/create-dashboard', async (req, res) => {
       },
     });
 
-    // const dashboardUrl = `${GRAFANA_API_URL}/d/${response.data.uid}`;
-    // res.status(200).json({ dashboardUrl });
 
     // 使用 d-solo 和 panelId 生成单个面板的 URL
     const panelId = 1; // 替换为你实际的 panelId
-    const soloPanelUrl = `${GRAFANA_API_URL}/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light`;
+    const soloPanelUrl = `${GRAFANA_API_URL}/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light&from=${from}&to=${to}`;
 
     res.status(200).json({ dashboardUrl: soloPanelUrl });
 
