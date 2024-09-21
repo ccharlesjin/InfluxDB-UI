@@ -1,7 +1,7 @@
 import * as React from 'react';
 import PropTypes from 'prop-types';
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
-import Select from '@mui/material/Select';
+import Select, { SelectChangeEvent } from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import Button from '@mui/material/Button';
@@ -12,6 +12,7 @@ import Toolbar from '@mui/material/Toolbar';
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import ToggleColorMode from './ToggleColorMode';
 import getSignInTheme from './theme/getSignInTheme';
+import { useTranslation } from 'react-i18next';
 
 const StyledAppBar = styled(AppBar)(({ theme }) => ({
   position: 'relative',
@@ -34,11 +35,20 @@ function TemplateFrame({
   mode,
   toggleColorMode,
   children,
+  changeLanguage,
+  language,
 }) {
+  const { t } = useTranslation();
   const handleChange = (event) => {
     toggleCustomTheme(event.target.value === 'custom');
   };
   const signInTheme = createTheme(getSignInTheme(mode));
+
+  const handleLanguageChange = (event) => {
+    const selectedLanguage = event.target.value;
+    changeLanguage(selectedLanguage);
+    window.location.reload();
+  };
 
   return (
     <ThemeProvider theme={signInTheme}>
@@ -54,45 +64,24 @@ function TemplateFrame({
               p: '8px 12px',
             }}
           >
-            <Button
-              variant="text"
-              size="small"
-              aria-label="Back to templates"
-              startIcon={<ArrowBackRoundedIcon />}
-              component="a"
-              href="/material-ui/getting-started/templates/"
-              sx={{ display: { xs: 'none', sm: 'flex' } }}
-            >
-              Back to templates
-            </Button>
-            <IconButton
-              size="small"
-              aria-label="Back to templates"
-              component="a"
-              href="/material-ui/getting-started/templates/"
-              sx={{ display: { xs: 'auto', sm: 'none' } }}
-            >
-              <ArrowBackRoundedIcon />
-            </IconButton>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <FormControl variant="outlined" sx={{ minWidth: 180 }}>
-                <Select
-                  size="small"
-                  labelId="theme-select-label"
-                  id="theme-select"
-                  value={showCustomTheme ? 'custom' : 'material'}
-                  onChange={handleChange}
-                  label="Design Language"
-                >
-                  <MenuItem value="custom">Custom Theme</MenuItem>
-                  <MenuItem value="material">Material Design 2</MenuItem>
-                </Select>
-              </FormControl>
+            <Box sx={{ display: 'flex', gap: 1, ml: 'auto'}}>
               <ToggleColorMode
                 data-screenshot="toggle-mode"
                 mode={mode}
                 toggleColorMode={toggleColorMode}
               />
+              <FormControl variant="outlined" sx={{ minWidth: 120 }}>
+                <Select
+                  size="small"
+                  id="language-select"
+                  value={language}
+                  onChange={handleLanguageChange}
+                  label={t('Language')}
+                >
+                  <MenuItem value="en">{t('English')}</MenuItem>
+                  <MenuItem value="zh">{t('Chinese')}</MenuItem>
+                </Select>
+              </FormControl>
             </Box>
           </Toolbar>
         </StyledAppBar>

@@ -1,0 +1,26 @@
+{
+    "SignIn": "登录",
+    "Username": "用户名",
+    "Password": "密码",
+    "Please enter a valid username.": "请输入有效的用户名。",
+    "Password must be at least 6 characters long.": "密码至少需要6个字符。",
+    "Forgot your password?": "忘记密码？",
+    "Remember me": "记住我",
+    "Sign in": "登录",
+    "Don't have an account?": "还没有账号？",
+    "Sign up": "注册",
+    "An error occurred during login. Please try again later.": "登录时发生错误。请稍后再试。",
+    "Login failed:": "登录失败：",
+    "Back to templates": "返回模板",
+    "Custom Theme": "自定义主题",
+    "Material Design 2": "Material Design 2",
+    "English": "英语",
+    "Chinese": "中文",
+    "Change Language": "切换语言",
+    "Design Language": "设计语言",
+    "Enter InfluxDB URL": "输入 InfluxDB URL",
+    "Enter InfluxDB Token": "输入 InfluxDB Token",
+    "Enter InfluxDB Organization": "输入 InfluxDB Organization",
+    "Enter Organization Please.": "请输入 Organization。"
+  }
+  

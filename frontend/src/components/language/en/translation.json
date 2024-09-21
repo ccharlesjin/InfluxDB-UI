@@ -1,0 +1,26 @@
+{
+    "SignIn": "Sign in",
+    "Username": "Username",
+    "Password": "Password",
+    "Please enter a valid username.": "Please enter a valid username.",
+    "Password must be at least 6 characters long.": "Password must be at least 6 characters long.",
+    "Forgot your password?": "Forgot your password?",
+    "Remember me": "Remember me",
+    "Sign in": "Sign in",
+    "Don't have an account?": "Don't have an account?",
+    "Sign up": "Sign up",
+    "An error occurred during login. Please try again later.": "An error occurred during login. Please try again later.",
+    "Login failed:": "Login failed:",
+    "Back to templates": "Back to templates",
+    "Custom Theme": "Custom Theme",
+    "Material Design 2": "Material Design 2",
+    "English": "English",
+    "Chinese": "Chinese",
+    "Change Language": "Change Language",
+    "Design Language": "Design Language",
+    "Enter InfluxDB URL": "Enter InfluxDB URL",
+    "Enter InfluxDB Token": "Enter InfluxDB Token",
+    "Enter InfluxDB Organization": "Enter InfluxDB Organization",
+    "Enter Organization Please.": "Enter Organization Please."
+  }
+  

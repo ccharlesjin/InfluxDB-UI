@@ -16,6 +16,9 @@ import Toolbar from '@mui/material/Toolbar';
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import ToggleColorMode from './ToggleColorMode';
 import getSignInTheme from './theme/getSignInTheme';
+import LanguageIcon from '@mui/icons-material/Language';
+import Menu from '@mui/material/Menu';
+import { useTranslation } from 'react-i18next';
 
 const StyledAppBar = styled(AppBar)(({ theme }) => ({
   position: 'relative',
@@ -38,6 +41,8 @@ interface TemplateFrameProps {
   mode: PaletteMode;
   toggleColorMode: () => void;
   children: React.ReactNode;
+  changeLanguage: (lng: string) => void; // 添加此属性
+  language: string; // 添加此属性
 }
 
 export default function TemplateFrame({
@@ -46,10 +51,28 @@ export default function TemplateFrame({
   mode,
   toggleColorMode,
   children,
+  changeLanguage, // 添加此参数
+  language, // 添加此参数
 }: TemplateFrameProps) {
-  const handleChange = (event: SelectChangeEvent) => {
+  const { t } = useTranslation(); // 导入翻译函数
+
+  const [languageAnchorEl, setLanguageAnchorEl] = React.useState<null | HTMLElement>(null);
+
+  const handleLanguageMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setLanguageAnchorEl(event.currentTarget);
+  };
+
+  const handleLanguageMenuClose = (lng?: string) => {
+    setLanguageAnchorEl(null);
+    if (lng) {
+      changeLanguage(lng);
+    }
+  };
+
+  const handleThemeChange = (event: SelectChangeEvent) => {
     toggleCustomTheme(event.target.value === 'custom');
   };
+
   const signInTheme = createTheme(getSignInTheme(mode));
 
   return (
@@ -69,35 +92,35 @@ export default function TemplateFrame({
             <Button
               variant="text"
               size="small"
-              aria-label="Back to templates"
+              aria-label={t('Back to templates')}
               startIcon={<ArrowBackRoundedIcon />}
               component="a"
               href="/material-ui/getting-started/templates/"
               sx={{ display: { xs: 'none', sm: 'flex' } }}
             >
-              Back to templates
+              {t('Back to templates')}
             </Button>
             <IconButton
               size="small"
-              aria-label="Back to templates"
+              aria-label={t('Back to templates')}
               component="a"
               href="/material-ui/getting-started/templates/"
               sx={{ display: { xs: 'auto', sm: 'none' } }}
             >
               <ArrowBackRoundedIcon />
             </IconButton>
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <FormControl variant="outlined" sx={{ minWidth: 180 }}>
                 <Select
                   size="small"
                   labelId="theme-select-label"
                   id="theme-select"
                   value={showCustomTheme ? 'custom' : 'material'}
-                  onChange={handleChange}
-                  label="Design Language"
+                  onChange={handleThemeChange}
+                  label={t('Design Language')}
                 >
-                  <MenuItem value="custom">Custom Theme</MenuItem>
-                  <MenuItem value="material">Material Design 2</MenuItem>
+                  <MenuItem value="custom">{t('Custom Theme')}</MenuItem>
+                  <MenuItem value="material">{t('Material Design 2')}</MenuItem>
                 </Select>
               </FormControl>
               <ToggleColorMode
@@ -105,6 +128,23 @@ export default function TemplateFrame({
                 mode={mode}
                 toggleColorMode={toggleColorMode}
               />
+              <IconButton
+                size="small"
+                color="inherit"
+                onClick={handleLanguageMenuClick}
+                aria-label={t('Change Language')}
+              >
+                <LanguageIcon />
+              </IconButton>
+              <Menu
+                id="language-menu"
+                anchorEl={languageAnchorEl}
+                open={Boolean(languageAnchorEl)}
+                onClose={() => handleLanguageMenuClose()}
+              >
+                <MenuItem onClick={() => handleLanguageMenuClose('en')}>{t('English')}</MenuItem>
+                <MenuItem onClick={() => handleLanguageMenuClose('zh')}>{t('Chinese')}</MenuItem>
+              </Menu>
             </Box>
           </Toolbar>
         </StyledAppBar>

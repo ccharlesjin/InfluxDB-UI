@@ -6,6 +6,7 @@ import Dashboard from './components/dashboard/Dashboard'
 import QueryBuilder from './components/QueryBuilder';
 import TestBucket from './components/TestBucket';
 import TestDashboard from './components/TestDashboard';
+import './i18n';
 
 const App = () => {
   const [message, setMessage] = useState('');
