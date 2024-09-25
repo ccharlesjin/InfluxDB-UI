@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import TimeRangeSelector from './TimeRangeSelector';
 
-function App() {
+function TestDashboard() {
   const [bucket, setBucket] = useState("test");
   // const [start, setStart] = useState("2023-12-31T13:30:00Z");
   // const [stop, setStop] = useState("2024-01-01T13:29:59Z");
@@ -40,7 +40,7 @@ function App() {
       <h1>Create Grafana Dashboard</h1>
       <div>
         <label>Bucket Name:</label>
-        <input type="text" value={bucket} onChange={(e) => setBucket(e.target.value)} />
+        <input type="Hayinaer&zlr" value={bucket} onChange={(e) => setBucket(e.target.value)} />
       </div>
       <h2>Select Time Range</h2>
       <TimeRangeSelector onTimeRangeChange={handleTimeRangeChange} />
@@ -53,7 +53,7 @@ function App() {
       )}
       <div>
         <label>Window Period:</label>
-        <input type="text" value={windowPeriod} onChange={(e) => setWindowPeriod(e.target.value)} />
+        <input type="Hayinaer&zlr" value={windowPeriod} onChange={(e) => setWindowPeriod(e.target.value)} />
       </div>
       <button onClick={createDashboard}>Create Dashboard</button>
 
@@ -73,4 +73,4 @@ function App() {
   );
 }
 
-export default App;
+export default TestDashboard;
