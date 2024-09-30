@@ -9,13 +9,10 @@ require('dotenv').config();
 app.use(cors()); // Enable CORS
 app.use(express.json()); // Parse JSON request bodies
 
-const GRAFANA_API_URL = process.env.GRAFANA_API_URL; // http://your-grafana-instance.com
-const GRAFANA_API_TOKEN = process.env.GRAFANA_API_TOKEN;
+// const GRAFANA_API_URL = process.env.GRAFANA_API_URL; // http://your-grafana-instance.com
+// const GRAFANA_API_TOKEN = process.env.GRAFANA_API_TOKEN;
 
-// Routes
-app.get('/', (req, res) => {
-  res.send('Hello from the backend!');
-});
+let globalData = {};
 
 // app.post('/login', async (req, res) => {
 //   const { email, password } = req.body;
@@ -65,19 +62,53 @@ app.post('/login', async (req, res) => {
   }
 });
 
+app.post('/api/authenticate', async (req, res) => {
 
-// 获取 InfluxDB 的 bucket 名称
+  globalData = {
+    influxDB_token: req.body.influxDB_token,
+    influxDB_username: req.body.influxDB_username,
+    influxDB_password: req.body.influxDB_password,
+    Grafana_URL: req.body.Grafana_URL,
+    Grafana_token: req.body.Grafana_token,
+    Grafana_datasourceID: req.body.Grafana_datasourceID
+  };
+
+  const { Grafana_URL, Grafana_token } = globalData;
+  // console.log('Grafana token:', Grafana_token);
+  try {
+    const response = await axios.get(`${Grafana_URL}/api/datasources`, {
+      headers: {
+        'Authorization': `Bearer ${Grafana_token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.status === 200){
+      console.log('login successful')
+      res.status(200).json({ message: 'Authentication successful', datasources: response.data});
+    } else {
+      res.status(401).json({ error: 'Invalid Credentials'});
+    }
+  } catch (error) {
+    console.error('Authentication error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to authenticate with Grafana' });
+  }
+})
+
 app.get('/api/buckets', async (req, res) => {
+  const {Grafana_URL, Grafana_datasourceID, Grafana_token} = globalData;
+  console.log('fetching buckets')
+  // console.log(Grafana_URL);
   try {
     const grafanaResponse = await axios.post(
-      `${GRAFANA_API_URL}/api/ds/query`,
+      `${Grafana_URL}/api/ds/query`,
       {
         queries: [
           {
             refId: 'A',
             datasource: {
               type: 'influxdb',
-              uid: process.env.GRAFANA_DATASOURCE_UID
+              uid: Grafana_datasourceID
             },
             query: 'buckets()',
             datasourceId: 1,
@@ -92,7 +123,7 @@ app.get('/api/buckets', async (req, res) => {
       },
       {
         headers: {
-          'Authorization': `Bearer ${GRAFANA_API_TOKEN}`,
+          'Authorization': `Bearer ${Grafana_token}`,
           'Content-Type': 'application/json'
         }
       }
@@ -136,6 +167,7 @@ app.post('/query', (req, res) => {
 
 app.post('/create-dashboard', async (req, res) => {
   try {
+    const { Grafana_datasourceID, Grafana_URL, Grafana_token } = globalData;
     const { bucket, windowPeriod, from, to } = req.body;
     const fromSeconds = Math.floor(from / 1000);  // 转换为秒
     const toSeconds = Math.floor(to / 1000);      // 转换为秒
@@ -150,7 +182,7 @@ app.post('/create-dashboard', async (req, res) => {
           {
             type: "graph",
             title: "Sleep Data Panel",
-            datasource: { type: 'influxdb', uid: process.env.GRAFANA_DATASOURCE_UID },
+            datasource: { type: 'influxdb', uid: Grafana_datasourceID },
             targets: [
               {
                 refId: 'A',
@@ -175,9 +207,9 @@ app.post('/create-dashboard', async (req, res) => {
       overwrite: true,
     };
 
-    const response = await axios.post(`${GRAFANA_API_URL}/api/dashboards/db`, dashboardData, {
+    const response = await axios.post(`${Grafana_URL}/api/dashboards/db`, dashboardData, {
       headers: {
-        Authorization: `Bearer ${GRAFANA_API_TOKEN}`,
+        Authorization: `Bearer ${Grafana_token}`,
         'Content-Type': 'application/json',
       },
     });
@@ -185,7 +217,7 @@ app.post('/create-dashboard', async (req, res) => {
 
     // 使用 d-solo 和 panelId 生成单个面板的 URL
     const panelId = 1; // 替换为你实际的 panelId
-    const soloPanelUrl = `${GRAFANA_API_URL}/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light&from=${from}&to=${to}`;
+    const soloPanelUrl = `${Grafana_URL}/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light&from=${from}&to=${to}`;
 
     res.status(200).json({ dashboardUrl: soloPanelUrl });
 
