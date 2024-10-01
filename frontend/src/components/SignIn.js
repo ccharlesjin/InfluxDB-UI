@@ -17,21 +17,15 @@ export default function SignIn() {
     const data = new FormData(event.currentTarget);
     
     // Extract form values
-    const influxDB_token = data.get('influxDB_token');
-    const influxDB_username = data.get('influxDB_username');
-    const influxDB_password = data.get('influxDB_password');
-    const Grafana_URL = data.get('Grafana_URL');
-    const Grafana_token = data.get('Grafana_token');
-    const Grafana_datasourceID = data.get('Grafana_datasourceID');
+    const InfluxDB_URL = data.get('InfluxDB_URL');
+    const InfluxDB_token = data.get('InfluxDB_token');
+    const Organization_name = data.get('Organization_name');
 
     // Prepare the request payload
     const payload = {
-      influxDB_token,
-      influxDB_username,
-      influxDB_password,
-      Grafana_URL,
-      Grafana_token,
-      Grafana_datasourceID
+      InfluxDB_URL,
+      InfluxDB_token,
+      Organization_name
     };
 
     try {
@@ -90,66 +84,35 @@ export default function SignIn() {
         <Stack spacing={2}>
           {/* URL Input */}
           {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
-
-          {/* Field for InfluxDB token */}
-          {/* <TextField
-            id="influxdDB_token"
-            name="influxDB_token"
-            label={t('InfluxDB Token')}
-            placeholder={t('Enter InfluxDB Token')}
-            fullWidth
-            variant="outlined"
-          /> */}
-
-          {/* Field for username */}
-          {/* <TextField
-            id="influxDB_username"
-            name="influxDB_username"
-            label={t('InfluxDB Username')}
-            placeholder={t('Enter InfluxDB Username')}
-            fullWidth
-            variant="outlined"
-          /> */}
           
-          {/* Field for password */}
-          {/* <TextField
-            id="influxDB_password"
-            name="influxDB_password"
-            label={t('InfluxDB Password')}
-            placeholder={t('Enter InfluxDB Password')}
-            type="password"
-            fullWidth
-            variant="outlined"
-          /> */}
-          
-          {/* Field for Grafana URL */}
+          {/* Field for InfluxDB URL */}
           <TextField
-            id="Grafana_URL"
-            name="Grafana_URL"
-            label={t('Grafana URL')}
-            placeholder={t('Enter Grafana URL')}
+            id="InfluxDB_URL"
+            name="InfluxDB_URL"
+            label={t('InfluxDB URL')}
+            placeholder={t('Enter InfluxDB URL')}
             fullWidth
             variant="outlined"
             required
           />
 
-          {/* Field for Grafana token */}
+          {/* Field for InfluxDB Token */}
           <TextField
-            id="Grafana_token"
-            name="Grafana_token"
-            label={t('Grafana Token')}
-            placeholder={t('Enter Grafana Token')}
+            id="InfluxDB_token"
+            name="InfluxDB_token"
+            label={t('InfluxDB Token')}
+            placeholder={t('Enter InfluxDB Token')}
             fullWidth
             variant="outlined"
             required
           />
   
-          {/* Field for Grafana datasourceID */}
+          {/* Field for Organization Name */}
           <TextField
-            id="Grafana_datasourceID"
-            name="Grafana_datasourceID"
-            label={t('Grafana datasourceID')}
-            placeholder={t('Enter Grafana datasourceID')}
+            id="Organization_name"
+            name="Organization_name"
+            label={t('Organization Name')}
+            placeholder={t('Enter Organization Name')}
             fullWidth
             variant="outlined"
             required

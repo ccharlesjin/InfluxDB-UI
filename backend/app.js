@@ -2,9 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const app = express();
-
 require('dotenv').config();
-
+const Grafana_URL = process.env.GRAFANA_API_URL;
+const Grafana_token = process.env.GRAFANA_API_TOKEN;
 // Middleware
 app.use(cors()); // Enable CORS
 app.use(express.json()); // Parse JSON request bodies
@@ -65,38 +65,160 @@ app.post('/login', async (req, res) => {
 app.post('/api/authenticate', async (req, res) => {
 
   globalData = {
-    influxDB_token: req.body.influxDB_token,
-    influxDB_username: req.body.influxDB_username,
-    influxDB_password: req.body.influxDB_password,
-    Grafana_URL: req.body.Grafana_URL,
-    Grafana_token: req.body.Grafana_token,
-    Grafana_datasourceID: req.body.Grafana_datasourceID
+    influxDB_token: req.body.InfluxDB_token,
+    influxDB_URL: req.body.InfluxDB_URL,
+    Organization_name: req.body.Organization_name,
+  };
+  
+  const validateInfluxDBCredentials = async (influxDB_URL, influxDB_token, organization) => {
+      try {
+          const response = await axios.get(`${influxDB_URL}/api/v2/orgs`, {
+              headers: {
+                  'Authorization': `Token ${influxDB_token}`,
+              }
+          });
+          // console.log('Response:', response);
+          const orgs = response.data.orgs;
+          const validOrg = orgs.find(org => org.name === organization);
+
+          if (!validOrg) {
+              throw new Error('Invalid organization');
+          }
+
+          return true;
+      } catch (error) {
+          console.error('Invalid InfluxDB credentials:', error.message);
+          return false;
+      }
+  };
+  const { influxDB_token, influxDB_URL, Organization_name } = globalData;
+  console.log('Login request:', { influxDB_token, influxDB_URL, Organization_name });
+  const isValid = await validateInfluxDBCredentials(influxDB_URL, influxDB_token, Organization_name);
+  if (!isValid) {
+    return res.status(401).json({ error: 'Invalid token or organization' });
+  }
+
+  const checkDataSourceExists = async (dataSourceName) => {
+    try {
+      const response = await axios.get(`${Grafana_URL}/api/datasources`, {
+        headers: {
+          'Authorization': `Bearer ${Grafana_token}`,
+          'Content-Type': 'application/json',
+          "Accept": "application/json",
+        },
+      });
+      
+      // 查找是否存在同名的数据源
+      const existingDataSource = response.data.find(ds => ds.name === dataSourceName);
+      if (existingDataSource) {
+        console.log('Data Source already exists with ID:', existingDataSource.id);
+        return existingDataSource;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error checking data sources:', error.response ? error.response.data : error.message);
+      throw error;
+    }
   };
 
-  const { Grafana_URL, Grafana_token } = globalData;
-  // console.log('Grafana token:', Grafana_token);
+  const createDataSource = async () => {
+    try {
+      // Step 1: 创建InfluxDB数据源
+      const createResponse = await axios.post(
+        `${Grafana_URL}/api/datasources`,
+        {
+          name: influxDB_URL, // 数据源名称
+          type: 'influxdb', // 数据源类型
+          url: influxDB_URL, // InfluxDB URL
+          access: 'proxy', // 通过Grafana的代理
+          basicAuth: false, // 是否使用基本认证
+          jsonData: {
+            // defaultBucket: INFLUXDB_BUCKET, // InfluxDB的bucket名称
+            organization: Organization_name, // InfluxDB的组织名称
+            version: 'Flux', // 使用Flux查询
+          },
+          secureJsonData: {
+            token: influxDB_token,
+          }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${Grafana_token}`, // Grafana API Token
+            'Content-Type': 'application/json',
+            "Accept": "application/json",
+          }
+        }
+      );
+  
+      const dataSourceId = createResponse.data.datasource.id;
+
+      console.log('Data Source Created with ID:', dataSourceId);
+  
+      // Step 2: 使用创建的数据源ID获取数据源的详细信息（包括UID）
+      const dataSourceDetails = await axios.get(`${Grafana_URL}/api/datasources/${dataSourceId}`, {
+        headers: {
+          'Authorization': `Bearer ${Grafana_token}`,
+          'Content-Type': 'application/json',
+          "Accept": "application/json",
+        },
+      });
+  
+      const uid = dataSourceDetails.data.uid;
+      globalData = {
+        influxDB_token: influxDB_token,
+        influxDB_URL: influxDB_URL,
+        Organization_name: Organization_name,
+        Grafana_datasourceID: uid,
+        Grafana_dataID: dataSourceId,
+        Grafana_URL: Grafana_URL,
+      };
+      console.log('Data Source UID:', uid);
+  
+      return uid;
+    } catch (error) {
+      console.error('Error:', error.response ? error.response.data : error.message);
+    }
+  };
+  
+
   try {
+    // 检查数据源是否存在
+    let dataSource = await checkDataSourceExists(influxDB_URL);
+
+    if (!dataSource) {
+      // 如果数据源不存在，则创建
+      dataSource = await createDataSource();
+    } else {
+      // 如果已存在，直接使用现有的数据源ID和UID
+      globalData.Grafana_datasourceID = dataSource.uid;
+      globalData.Grafana_dataID = dataSource.id;
+      console.log('Using existing Data Source UID:', dataSource.uid);
+    }
+
+    // 认证成功返回数据
     const response = await axios.get(`${Grafana_URL}/api/datasources`, {
       headers: {
         'Authorization': `Bearer ${Grafana_token}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        "Accept": "application/json",
       }
-    })
+    });
 
-    if (response.status === 200){
-      console.log('login successful')
-      res.status(200).json({ message: 'Authentication successful', datasources: response.data});
+    if (response.status === 200) {
+      console.log('Login successful');
+      res.status(200).json({ message: 'Authentication successful', datasources: response.data });
     } else {
-      res.status(401).json({ error: 'Invalid Credentials'});
+      res.status(401).json({ error: 'Invalid Credentials' });
     }
   } catch (error) {
     console.error('Authentication error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to authenticate with Grafana' });
   }
-})
+});
 
 app.get('/api/buckets', async (req, res) => {
-  const {Grafana_URL, Grafana_datasourceID, Grafana_token} = globalData;
+  const {Grafana_datasourceID, Grafana_dataID} = globalData;
+
   console.log('fetching buckets')
   // console.log(Grafana_URL);
   try {
@@ -111,7 +233,7 @@ app.get('/api/buckets', async (req, res) => {
               uid: Grafana_datasourceID
             },
             query: 'buckets()',
-            datasourceId: 1,
+            datasourceId: Grafana_dataID,
             hide: false,
             intervalMs: 5000,
             maxDataPoints: 886,
@@ -128,12 +250,17 @@ app.get('/api/buckets', async (req, res) => {
         }
       }
     );
-
+    // console.log('datasourceId:', Grafana_dataID);
+    // console.log('uid:', Grafana_datasourceID);
+    // console.log('Grafana_token:', Grafana_token);
     const bucketNames = grafanaResponse.data.results.A.frames[0].data.values[0];
     console.log('Bucket Names:', bucketNames);
     
     res.status(200).json({ buckets: bucketNames });
   } catch (error) {
+    console.log('datasourceId:', Grafana_dataID);
+    console.log('uid:', Grafana_datasourceID);
+    console.log('Grafana_token:', Grafana_token);
     console.error('Error fetching buckets:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to fetch data from Grafana' });
   }
@@ -167,7 +294,7 @@ app.post('/query', (req, res) => {
 
 app.post('/create-dashboard', async (req, res) => {
   try {
-    const { Grafana_datasourceID, Grafana_URL, Grafana_token } = globalData;
+    const { Grafana_datasourceID } = globalData;
     const { bucket, windowPeriod, from, to } = req.body;
     const fromSeconds = Math.floor(from / 1000);  // 转换为秒
     const toSeconds = Math.floor(to / 1000);      // 转换为秒
