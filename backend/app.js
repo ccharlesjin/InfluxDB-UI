@@ -9,58 +9,7 @@ const Grafana_token = process.env.GRAFANA_API_TOKEN;
 app.use(cors()); // Enable CORS
 app.use(express.json()); // Parse JSON request bodies
 
-// const GRAFANA_API_URL = process.env.GRAFANA_API_URL; // http://your-grafana-instance.com
-// const GRAFANA_API_TOKEN = process.env.GRAFANA_API_TOKEN;
-
 let globalData = {};
-
-// app.post('/login', async (req, res) => {
-//   const { email, password } = req.body;
-//   console.log('Login request:', { email, password });
-//   try {
-  
-//     const response = await axios.get('http://localhost:3001/users', {
-//       params: {
-//         email: email,
-//         password: password
-//       }
-//     });
-
-//     const user = response.data[0];
-//     console.log('User:', user);
-//     if (user) {
-//       console.log('Login successful');
-//       res.status(200).json({ message: 'Login successful', userId: user.id });
-//     } else {
-//       console.log('Invalid email or password');
-//       res.status(401).json({ message: 'Invalid email or password' });
-//     }
-//   } catch (error) {
-//     console.log('An error occurred', error.message);
-//     res.status(500).json({ message: 'An error occurred', error: error.message });
-//   }
-// });
-
-app.post('/login', async (req, res) => {
-  const { username, password } = req.body;
-  console.log('Login request:', { username, password });
-
-  const storedUsername = process.env.INFLUXDB_USERNAME;
-  const storedPassword = process.env.INFLUXDB_PASSWORD;
-
-  try {
-    if (username === storedUsername && password === storedPassword) {
-      console.log('Login successful');
-      res.status(200).json({ message: 'Login successful' });
-    } else {
-      console.log('Invalid username or password');
-      res.status(401).json({ message: 'Invalid username or password' });
-    }
-  } catch (error) {
-    console.log('An error occurred', error.message);
-    res.status(500).json({ message: 'An error occurred', error: error.message });
-  }
-});
 
 app.post('/api/authenticate', async (req, res) => {
 
@@ -263,6 +212,116 @@ app.get('/api/buckets', async (req, res) => {
     console.log('Grafana_token:', Grafana_token);
     console.error('Error fetching buckets:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to fetch data from Grafana' });
+  }
+});
+
+app.get('/api/measurements', async (req, res) => {
+  const { bucket } = req.query; // 从前端获取所选择的 bucket
+  const { Grafana_datasourceID, Grafana_dataID } = globalData;
+  console.log('fetching measurements for bucket:', bucket);
+  
+  try {
+    const grafanaResponse = await axios.post(
+      `${Grafana_URL}/api/ds/query`,
+      {
+        queries: [
+          {
+            refId: 'A',
+            datasource: {
+              type: 'influxdb',
+              uid: Grafana_datasourceID
+            },
+            query: `from(bucket: "${bucket}")
+                    |> range(start: 0)
+                    |> distinct(column: "_measurement")
+                    |> sort()`,
+            datasourceId: Grafana_dataID,
+            hide: false,
+            intervalMs: 300000,
+            maxDataPoints: 1500
+          }
+        ],
+        from: "now-1h",
+        to: "now"
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${Grafana_token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    // 提取所有 frames 中的 measurement 名称
+    const frames = grafanaResponse.data.results.A.frames;
+    const measurementNames = frames.flatMap(frame => {
+      return frame.data.values[0]; // 从每个 frame 中提取 measurement 的名称
+    });
+
+    // 去重以确保没有重复的 measurement 名称
+    const uniqueMeasurements = [...new Set(measurementNames)];
+    console.log('Unique Measurement Names:', uniqueMeasurements);
+
+    res.status(200).json({ measurements: uniqueMeasurements });
+  } catch (error) {
+    console.error('Error fetching measurements:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to fetch measurements from Grafana' });
+  }
+});
+
+app.get('/api/fields', async (req, res) => {
+  const { bucket, measurement } = req.query;
+  const { Grafana_datasourceID, Grafana_dataID } = globalData;
+  console.log(`Fetching fields for measurement: ${measurement} in bucket: ${bucket}`);
+  
+  try {
+    const grafanaResponse = await axios.post(
+      `${Grafana_URL}/api/ds/query`,
+      {
+        queries: [
+          {
+            refId: 'A',
+            datasource: {
+              type: 'influxdb',
+              uid: Grafana_datasourceID
+            },
+            query: `from(bucket: "${bucket}")
+                    |> range(start: 0)
+                    |> filter(fn: (r) => r["_measurement"] == "${measurement}")
+                    |> keep(columns: ["_field"])
+                    |> distinct(column: "_field")
+                    |> sort()`,
+            datasourceId: Grafana_dataID,
+            hide: false,
+            intervalMs: 300000,
+            maxDataPoints: 1500
+          }
+        ],
+        from: "now-1h",
+        to: "now"
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${Grafana_token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    // 提取 field 名称
+    const frames = grafanaResponse.data.results.A.frames;
+    const fieldNames = frames.flatMap(frame => {
+      return frame.data.values[0][0]; // 从每个 frame 中提取 field 的名称
+    });
+
+    // 去重以确保没有重复的 field 名称
+    const uniqueFields = [...new Set(fieldNames)];
+    console.log('Unique Field Names:', uniqueFields);
+
+    res.status(200).json({ fields: uniqueFields });
+  } catch (error) {
+    console.error('Error fetching fields:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to fetch fields from Grafana' });
   }
 });
 

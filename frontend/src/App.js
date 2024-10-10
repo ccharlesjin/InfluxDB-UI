@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import SignIn from './components/SignIn';
+import Drag from './components/drag/Drag';
 import MainDashboard from './components/MainDashboard';
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import { ColorModeContext, useMode } from './components/theme';
@@ -22,6 +23,7 @@ const App = () => {
               <Route path="/" element={<SignIn setLoading={setLoading} loading={loading}/>} />
               <Route path="/dashboard" element={<MainDashboard setLoading={setLoading} loading={loading} />} />
               <Route path="/test" element={<TestDashboard/>} />
+              <Route path="/drag" element={<Drag/>} />
             </Routes>
           </Layout>
         </BrowserRouter>
