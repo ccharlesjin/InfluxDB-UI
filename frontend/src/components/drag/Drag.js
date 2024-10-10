@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Typography, Select, MenuItem } from '@mui/material';
+import { Box, Typography, Button, Select, MenuItem } from '@mui/material';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import TimeRangeSelector from './TimeRangeSelector';
 import axios from 'axios';
+import dayjs from 'dayjs';
 
 const ItemTypes = {
   MEASUREMENT: 'measurement',
@@ -210,6 +212,8 @@ function SelectedFieldList({ fields, measurement, onFieldSelect }) {
 }
 
 export default function DragAndDropComponent() {
+  const [loading, setLoading] = useState(false);
+  const [iframeUrl, setIframeUrl] = useState("");
   const [bucket, setBucket] = useState('');
   const [bucketList, setBucketList] = useState([]);
   const [errorMessage, setErrorMessage] = useState('');
@@ -218,6 +222,12 @@ export default function DragAndDropComponent() {
   const [measurementFields, setMeasurementFields] = useState({});
   const [selectedFields, setSelectedFields] = useState({});
   const [queryCode, setQueryCode] = useState('');
+  // const [timeRange, setTimeRange] = useState({ start: null, end: null });
+  const [timeRange, setTimeRange] = useState({
+    start: dayjs().subtract(1, 'day'), // 设置为一天前的时间
+    end: dayjs() // 设置为当前时间
+  });
+  const [windowPeriod, setWindowPeriod] = useState("10m");
 
   // 获取 buckets
   useEffect(() => {
@@ -251,10 +261,38 @@ export default function DragAndDropComponent() {
     }
   }, [bucket]);
 
+  const createDashboard = async () => {
+    if (!timeRange.start || !timeRange.end) {
+      alert("Please select a valid time range");
+      return;
+    }
+
+    try {
+      // show loading page
+      setLoading(true); 
+      const start = timeRange.start.unix() * 1000;
+      const stop = timeRange.end.unix() * 1000;
+
+      const response = await axios.post('http://localhost:5001/api/execute-query', {
+        bucket,
+        windowPeriod,
+        from: start,
+        to: stop,
+        fluxQuery: queryCode
+      });
+
+      setIframeUrl(response.data.dashboardUrl);
+    } catch (error) {
+      console.error('Error creating dashboard:', error);
+    } finally {
+      setLoading(false); // Hide loading after operation
+    }
+  };
+
   // 生成查询代码
   const generateFluxQuery = useCallback(() => {
-    let query = `from(bucket: "${bucket}")\n  |> range(start: -1h)\n`;
-
+    let query = `from(bucket: "${bucket}")\n`;
+    query += `  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n`;
     droppedMeasurements.forEach((measurement) => {
       query += `  |> filter(fn: (r) => r["_measurement"] == "${measurement}")\n`;
 
@@ -267,20 +305,41 @@ export default function DragAndDropComponent() {
       }
     });
 
-    query += '  |> aggregateWindow(every: 10s, fn: mean)\n  |> yield(name: "mean")';
+    query += '  |> aggregateWindow(every: 10m, fn: mean)\n  |> yield(name: "mean")';
 
     setQueryCode(query);
+    console.log("query: ", query);
+    console.log("queryCode: ", queryCode);
+    if (!timeRange.start || !timeRange.end) {
+      alert("Please select a valid time range");
+      return;
+    }
+
+    setLoading(true); 
+    const start = timeRange.start.unix() * 1000;
+    const stop = timeRange.end.unix() * 1000;
 
     // 发送生成的查询到后端
     axios
-      .post('http://localhost:5001/api/execute-query', { fluxQuery: query })
+      .post('http://localhost:5001/api/execute-query', { 
+        fluxQuery: query,
+        bucket,
+        windowPeriod,
+        from: start,
+        to: stop })
       .then((response) => {
+        // if (response.data.status === 'success') {
+        //   setIframeUrl(response.data.dashboardUrl);
+        // }
+        setIframeUrl(response.data.dashboardUrl);  // newUrl 是你更新后的 Grafana 面板 URL
+        setLoading(false); 
         console.log('Query sent successfully:', response.data);
       })
       .catch((error) => {
         console.error('Error sending query:', error);
       });
-  }, [bucket, droppedMeasurements, selectedFields]);
+
+  }, [bucket, droppedMeasurements, selectedFields, timeRange]);
 
   useEffect(() => {
     if (droppedMeasurements.length > 0) {
@@ -364,6 +423,35 @@ export default function DragAndDropComponent() {
   return (
     <DndProvider backend={HTML5Backend}>
       <div>
+        
+        {/* Visualization area */}
+        <Box 
+          display="flex" 
+          justifyContent="center" 
+          alignItems="center" 
+          width="100%" 
+          maxWidth="1200px" 
+          height="400px" 
+          borderRadius="6px" 
+          boxShadow="0px 2px 10px rgba(0,0,0,0.1)" 
+          bgcolor="primary" 
+          p={2} 
+          mb={4}
+        >
+          {iframeUrl ? (
+            <iframe
+              // key={iframeUrl + new Date().getTime()}
+              src={iframeUrl}
+              width="100%"
+              height="100%"
+              // frameBorder="0"
+              title="Grafana Panel"
+            />
+          ) : (
+            <Typography variant="h6">No data to display</Typography>
+          )}
+        </Box>
+        
         <Box
           flex={1}
           height="200px"
@@ -440,6 +528,43 @@ export default function DragAndDropComponent() {
           <h3>Generated Query Code:</h3>
           <pre>{queryCode}</pre>
         </div>
+
+        {/* Time range selection area */}
+        <Box 
+          sx={{ 
+            width: '40%', 
+            padding: '2rem', 
+            backgroundColor: 'primary', 
+            borderRadius: '8px', 
+            boxShadow: 1 
+          }}
+        >
+          <Typography 
+            variant="h6" 
+            sx={{ textAlign: 'center', marginBottom: '1rem' }}
+          >
+            Select Time Range
+          </Typography>
+          <TimeRangeSelector onTimeRangeChange={setTimeRange} />
+          {timeRange.start && timeRange.end && (
+            <div>
+              <h2>Selected Time Range:</h2>
+              <p>Start: {timeRange.start.format('YYYY-MM-DD HH:mm:ss')}</p>
+              <p>End: {timeRange.end.format('YYYY-MM-DD HH:mm:ss')}</p>
+            </div>
+          )}
+          <Box sx={{ marginTop: '1rem', textAlign: 'center' }}>
+            <Button 
+              variant="contained" 
+              color="primary" 
+              onClick={createDashboard} 
+              disabled={loading}
+            >
+              {loading ? "Creating..." : "Create Dashboard"}
+            </Button>
+          </Box>
+        </Box>
+
       </div>
     </DndProvider>
   );

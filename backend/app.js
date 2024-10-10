@@ -403,10 +403,72 @@ app.post('/create-dashboard', async (req, res) => {
 
     // 使用 d-solo 和 panelId 生成单个面板的 URL
     const panelId = 1; // 替换为你实际的 panelId
-    const soloPanelUrl = `${Grafana_URL}/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light&from=${from}&to=${to}`;
+    const soloPanelUrl = `${Grafana_URL}/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light&from=${from}&to=${to}&t=${Date.now()}`;
 
     res.status(200).json({ dashboardUrl: soloPanelUrl });
 
+  } catch (error) {
+    console.error('Error creating dashboard:', error);
+    res.status(500).json({ message: 'Failed to create dashboard' });
+  }
+});
+
+app.post('/api/execute-query', async (req, res) => {
+  try {
+    const { Grafana_datasourceID } = globalData;
+    const { bucket, windowPeriod, from, to, fluxQuery } = req.body;
+    const fromSeconds = Math.floor(from / 1000);
+    const toSeconds = Math.floor(to / 1000);
+
+    // Your existing logic for creating the dashboard
+    console.log('Creating dashboard with the following params:', { bucket, windowPeriod, from, to, fromSeconds, toSeconds, fluxQuery });
+    
+    const dashboardData = {
+      dashboard: {
+        id: null,
+        title: "Generated Dashboard",
+        timezone: "browser",
+        panels: [
+          {
+            type: "graph",
+            title: "Sleep Data Panel",
+            datasource: { type: 'influxdb', uid: Grafana_datasourceID },
+            targets: [
+              {
+                refId: 'A',
+                query: fluxQuery,
+              },
+            ],
+            gridPos: {
+              x: 0,
+              y: 0,
+              w: 24,
+              h: 10
+            },
+          }
+        ],
+      },
+      overwrite: true,
+    };
+
+    const response = await axios.post(`${Grafana_URL}/api/dashboards/db`, dashboardData, {
+      headers: {
+        Authorization: `Bearer ${Grafana_token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const panelId = 1; 
+    const timestamp = new Date().getTime();
+    const soloPanelUrl = `${Grafana_URL}/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light&from=${from}&to=${to}&nocache=${timestamp}`;
+    console.log('Dashboard URL:', soloPanelUrl);
+
+    // Adding cache-control headers to the response
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+    res.status(200).json({ dashboardUrl: soloPanelUrl });
   } catch (error) {
     console.error('Error creating dashboard:', error);
     res.status(500).json({ message: 'Failed to create dashboard' });
