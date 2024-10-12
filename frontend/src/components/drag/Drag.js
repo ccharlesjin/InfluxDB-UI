@@ -228,12 +228,17 @@ export default function DragAndDropComponent() {
     end: dayjs() // 设置为当前时间
   });
   const [windowPeriod, setWindowPeriod] = useState("10m");
+  useEffect(() => {
+    axios.defaults.withCredentials = true;
+  }, []);
 
   // 获取 buckets
   useEffect(() => {
     const fetchBuckets = async () => {
       try {
-        const response = await axios.get('http://localhost:5001/api/buckets');
+        const response = await axios.get('https://localhost:5001/api/buckets', {
+          withCredentials: true,  // 在请求配置中添加 withCredentials
+        });
         setBucketList(response.data.buckets);
       } catch (error) {
         console.log('Error fetching bucket list:', error);
@@ -248,8 +253,10 @@ export default function DragAndDropComponent() {
     if (bucket) {
       const fetchMeasurements = async () => {
         try {
-          const response = await axios.get('http://localhost:5001/api/measurements', {
+          const response = await axios.get('https://localhost:5001/api/measurements', {
             params: { bucket },
+          }, {
+            withCredentials: true,  // 在请求配置中添加 withCredentials
           });
           setMeasurements(response.data.measurements);
         } catch (error) {
@@ -273,7 +280,7 @@ export default function DragAndDropComponent() {
       const start = timeRange.start.unix() * 1000;
       const stop = timeRange.end.unix() * 1000;
 
-      const response = await axios.post('http://localhost:5001/api/execute-query', {
+      const response = await axios.post('https://localhost:5001/api/execute-query', {
         bucket,
         windowPeriod,
         from: start,
@@ -321,7 +328,7 @@ export default function DragAndDropComponent() {
 
     // 发送生成的查询到后端
     axios
-      .post('http://localhost:5001/api/execute-query', { 
+      .post('https://localhost:5001/api/execute-query', { 
         fluxQuery: query,
         bucket,
         windowPeriod,
@@ -378,7 +385,7 @@ export default function DragAndDropComponent() {
   // 获取 measurement 的 fields
   const fetchFieldsForMeasurement = async (measurement) => {
     try {
-      const response = await axios.get('http://localhost:5001/api/fields', {
+      const response = await axios.get('https://localhost:5001/api/fields', {
         params: { bucket, measurement },
       });
       setMeasurementFields((prev) => ({

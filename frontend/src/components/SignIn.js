@@ -30,12 +30,19 @@ export default function SignIn() {
 
     try {
       // Make an API request to the backend using axios
-      const response = await axios.post('http://localhost:5001/api/authenticate', payload);
+      const response = await axios.post('https://localhost:5001/api/authenticate', payload, {
+        withCredentials: true,  // 在请求配置中添加 withCredentials
+      });
 
       // Handle success (e.g., navigate to dashboard)
       if (response.status === 200) {
         console.log('Authentication successful', response.data);
+        // const token = document.cookie.split('; ').find(row => row.startsWith('session_token')).split('=')[1];
+        // console.log('Token from cookie:', token);
         setErrorMessage('');  // Clear any previous error messages
+        // setTimeout(() => {
+        //   navigate('/dashboard');  // 成功后再跳转
+        // }, 10000);  // 1秒延时，确保cookie传递完成
         navigate('/dashboard');
       }
     } catch (error) {
