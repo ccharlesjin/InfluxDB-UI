@@ -300,19 +300,22 @@ export default function DragAndDropComponent() {
   const generateFluxQuery = useCallback(() => {
     let query = `from(bucket: "${bucket}")\n`;
     query += `  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n`;
-    droppedMeasurements.forEach((measurement) => {
-      query += `  |> filter(fn: (r) => r["_measurement"] == "${measurement}")\n`;
+    if (droppedMeasurements && droppedMeasurements.length > 0) {
+      const measurementFilters = droppedMeasurements
+        .map((measurement) => `r["_measurement"] == "${measurement}"`)
+        .join(' or ');
+      query += `  |> filter(fn: (r) => ${measurementFilters})\n`;
+    }
+    const fields = Object.values(selectedFields).flat();
+    if (fields && fields.length > 0) {
+      const fieldFilters = fields
+        .map((field) => `r["_field"] == "${field}"`)
+        .join(' or ');
+      query += `  |> filter(fn: (r) => ${fieldFilters})\n`;
+    }
+    ;
 
-      const fields = selectedFields[measurement];
-      if (fields && fields.length > 0) {
-        const fieldFilters = fields
-          .map((field) => `r["_field"] == "${field}"`)
-          .join(' or ');
-        query += `  |> filter(fn: (r) => ${fieldFilters})\n`;
-      }
-    });
-
-    query += '  |> aggregateWindow(every: 10m, fn: mean)\n  |> yield(name: "mean")';
+    query += '  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: "mean")';
 
     setQueryCode(query);
     console.log("query: ", query);
@@ -427,6 +430,21 @@ export default function DragAndDropComponent() {
     }));
   };
 
+  const Reset = () => {
+    setBucket('');                    
+    setMeasurements([]);               
+    setDroppedMeasurements([]);        
+    setMeasurementFields({});         
+    setSelectedFields({});           
+    setTimeRange({
+      start: dayjs().subtract(1, 'day'),
+      end: dayjs(),                  
+    });
+    setQueryCode('');            
+    setIframeUrl('');                
+    setWindowPeriod('10m');         
+    setErrorMessage('');        
+  };
   return (
     <DndProvider backend={HTML5Backend}>
       <div>
@@ -553,14 +571,14 @@ export default function DragAndDropComponent() {
             Select Time Range
           </Typography>
           <TimeRangeSelector onTimeRangeChange={setTimeRange} />
-          {timeRange.start && timeRange.end && (
+          {/* {timeRange.start && timeRange.end && (
             <div>
               <h2>Selected Time Range:</h2>
               <p>Start: {timeRange.start.format('YYYY-MM-DD HH:mm:ss')}</p>
               <p>End: {timeRange.end.format('YYYY-MM-DD HH:mm:ss')}</p>
             </div>
-          )}
-          <Box sx={{ marginTop: '1rem', textAlign: 'center' }}>
+          )} */}
+          {/* <Box sx={{ marginTop: '1rem', textAlign: 'center' }}>
             <Button 
               variant="contained" 
               color="primary" 
@@ -569,9 +587,18 @@ export default function DragAndDropComponent() {
             >
               {loading ? "Creating..." : "Create Dashboard"}
             </Button>
-          </Box>
+          </Box> */}
         </Box>
-
+        <Box sx={{ marginTop: '1rem', textAlign: 'center' }}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={Reset}
+              disabled={loading}
+            >
+              {loading ? "Creating..." : "Reset"}
+            </Button>
+        </Box>
       </div>
     </DndProvider>
   );

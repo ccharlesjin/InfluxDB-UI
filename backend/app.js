@@ -7,16 +7,33 @@ const axios = require('axios');
 const app = express();
 require('dotenv').config();
 const Grafana_URL = process.env.GRAFANA_API_URL;
-const Grafana_token = process.env.GRAFANA_API_TOKEN;
+// const Grafana_token = process.env.GRAFANA_API_TOKEN;
+const Grafana_token = process.env.LONGTERM_JWT_TOKEN;
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 app.use(cookieParser());
 
-const JWT_SECRET = process.env.JWT_SECRET;
+// const JWT_SECRET = process.env.JWT_SECRET;
+
+// 加载私钥
+const privateKey = fs.readFileSync(process.env.PRIVATE_KEY_FILE);
+
 const sslOptions = {
   key: fs.readFileSync(path.resolve(__dirname, process.env.SSL_KEY_FILE)),
-  cert: fs.readFileSync(path.resolve(__dirname, process.env.SSL_CRT_FILE))
+  cert: fs.readFileSync(path.resolve(__dirname, process.env.SSL_CRT_FILE)),
+  // rejectUnauthorized: false,
+  // minVersion: 'TLSv1.2', // 设置最小的TLS版本 // 禁用严格的SSL验证，仅用于测试目的
 };
+
+// console.log('key: ', path.resolve(__dirname, process.env.SSL_KEY_FILE));
+// 加载自签名的CA证书
+const ca = fs.readFileSync(process.env.SSL_ROOT_CRT_FILE);
+
+// 创建一个带有自定义CA的HTTPS Agent
+const agent = new https.Agent({
+  ca: ca  // 手动添加自签名证书到可信任列表
+});
+
 
 
 // Middleware
@@ -55,7 +72,7 @@ app.post('/api/authenticate', async (req, res) => {
           if (!validOrg) {
               throw new Error('Invalid organization');
           }
-
+          console.log('Valid organization:', validOrg);
           return true;
       } catch (error) {
           console.error('Invalid InfluxDB credentials:', error.message);
@@ -71,7 +88,10 @@ app.post('/api/authenticate', async (req, res) => {
 
   const checkDataSourceExists = async (dataSourceName) => {
     try {
+      // console.log(`Authorization: Bearer ${Grafana_token}`);
+      
       const response = await axios.get(`${Grafana_URL}/api/datasources`, {
+        httpsAgent: agent, // SSL代理
         headers: {
           'Authorization': `Bearer ${Grafana_token}`,
           'Content-Type': 'application/json',
@@ -79,15 +99,18 @@ app.post('/api/authenticate', async (req, res) => {
         },
       });
       
+      // console.log('Response of fetching datasources:', response);
       // 查找是否存在同名的数据源
       const existingDataSource = response.data.find(ds => ds.name === dataSourceName);
+      // console.log('Existing Data Source found:', existingDataSource);
       if (existingDataSource) {
-        console.log('Data Source already exists with ID:', existingDataSource.id);
+        // console.log('Data Source already exists with ID:', existingDataSource.id);
         return existingDataSource;
       }
       return null;
     } catch (error) {
       console.error('Error checking data sources:', error.response ? error.response.data : error.message);
+      // console.log('Error:', error.response ? error.response.data : error.message);
       throw error;
     }
   };
@@ -98,7 +121,7 @@ app.post('/api/authenticate', async (req, res) => {
       const createResponse = await axios.post(
         `${Grafana_URL}/api/datasources`,
         {
-          name: influxDB_URL, // 数据源名称
+          name: influxDB_URL+influxDB_token, // 数据源名称
           type: 'influxdb', // 数据源类型
           url: influxDB_URL, // InfluxDB URL
           access: 'proxy', // 通过Grafana的代理
@@ -113,6 +136,7 @@ app.post('/api/authenticate', async (req, res) => {
           }
         },
         {
+          httpsAgent: agent, // SSL代理,
           headers: {
             'Authorization': `Bearer ${Grafana_token}`, // Grafana API Token
             'Content-Type': 'application/json',
@@ -123,18 +147,20 @@ app.post('/api/authenticate', async (req, res) => {
   
       const dataSourceId = createResponse.data.datasource.id;
 
-      console.log('Data Source Created with ID:', dataSourceId);
+      // console.log('Data Source Created with ID:', dataSourceId);
   
       // Step 2: 使用创建的数据源ID获取数据源的详细信息（包括UID）
       const dataSourceDetails = await axios.get(`${Grafana_URL}/api/datasources/${dataSourceId}`, {
+        httpsAgent: agent, // SSL代理,
         headers: {
           'Authorization': `Bearer ${Grafana_token}`,
           'Content-Type': 'application/json',
           "Accept": "application/json",
         },
       });
-  
+      // console.log('Data Source Details:', dataSourceDetails);
       const uid = dataSourceDetails.data.uid;
+      // console.log('Data Source UID from Data Source Details:', uid);
       globalData = {
         influxDB_token: influxDB_token,
         influxDB_URL: influxDB_URL,
@@ -147,7 +173,7 @@ app.post('/api/authenticate', async (req, res) => {
       // console.log('Data Source ID:', dataSourceId);
 
   
-      return uid;
+      return dataSourceDetails.data;
     } catch (error) {
       console.error('Error:', error.response ? error.response.data : error.message);
     }
@@ -156,11 +182,12 @@ app.post('/api/authenticate', async (req, res) => {
 
   try {
     // 检查数据源是否存在
-    let dataSource = await checkDataSourceExists(influxDB_URL);
+    let dataSource = await checkDataSourceExists(influxDB_URL+influxDB_token);
 
     if (!dataSource) {
       // 如果数据源不存在，则创建
       dataSource = await createDataSource();
+      console.log('Data Source UID from createDataSource:', dataSource);
     } else {
       // 如果已存在，直接使用现有的数据源ID和UID
       globalData.Grafana_datasourceID = dataSource.uid;
@@ -170,6 +197,7 @@ app.post('/api/authenticate', async (req, res) => {
 
     // 认证成功返回数据
     const response = await axios.get(`${Grafana_URL}/api/datasources`, {
+      httpsAgent: agent, // SSL代理,
       headers: {
         'Authorization': `Bearer ${Grafana_token}`,
         'Content-Type': 'application/json',
@@ -186,11 +214,13 @@ app.post('/api/authenticate', async (req, res) => {
         influxDB_URL,
         Grafana_datasourceID: dataSource.uid,
         Grafana_dataID: dataSource.id,
-        user: 'authenticated_user'  // 你可以在这里加入其他需要的信息
+        user: 'authenticated_user',  // 你可以在这里加入其他需要的信息
+        iat: Math.floor(Date.now() / 1000),  // JWT的签发时间
+        exp: Math.floor(Date.now() / 1000) + (60 * 60)  // JWT的过期时间，设置为1小时后
       };
-      
+      console.log('Payload:', payload);
       // 生成JWT，设定过期时间，比如1小时
-      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+      const token = jwt.sign(payload, privateKey, { algorithm: 'RS256' });
       
       // 设置cookie将生成的token发送给客户端
       res.cookie('session_token', token, {
@@ -201,8 +231,8 @@ app.post('/api/authenticate', async (req, res) => {
         sameSite: 'none',  // 防止CSRF攻击
         maxAge: 24 * 60 * 60 * 1000,
       });
-      console.log('Data Source UID:', dataSource.uid);
-      console.log('Data Source ID:', dataSource.id);
+      // console.log('Data Source UID:', dataSource.uid);
+      // console.log('Data Source ID:', dataSource.id);
       console.log('Token generated:', token);
       res.setHeader('Access-Control-Allow-Origin', 'https://localhost:3000');
       res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -227,7 +257,7 @@ const verifyToken = (req, res, next) => {
   }
 
   // 验证token
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+  jwt.verify(token, privateKey, (err, decoded) => {
     if (err) {
       console.log('Invalid token');
       return res.status(401).json({ message: 'Failed to authenticate token' });
@@ -252,8 +282,8 @@ app.get('/api/buckets', verifyToken, async (req, res) => {
   const Grafana_datasourceID = req.user.Grafana_datasourceID;
   const Grafana_dataID = req.user.Grafana_dataID;
   console.log('fetching buckets')
-  console.log("Grafana_datasourceID: ", Grafana_datasourceID);
-  console.log("Grafana_dataID: ", Grafana_dataID);
+  // console.log("Grafana_datasourceID: ", Grafana_datasourceID);
+  // console.log("Grafana_dataID: ", Grafana_dataID);
   // console.log(Grafana_URL);
   try {
     const grafanaResponse = await axios.post(
@@ -278,6 +308,7 @@ app.get('/api/buckets', verifyToken, async (req, res) => {
         to: "now"
       },
       {
+        httpsAgent: agent, // SSL代理,
         headers: {
           'Authorization': `Bearer ${Grafana_token}`,
           'Content-Type': 'application/json'
@@ -332,6 +363,7 @@ app.get('/api/measurements', verifyToken, async (req, res) => {
         to: "now"
       },
       {
+        httpsAgent: agent, // SSL代理,
         headers: {
           'Authorization': `Bearer ${Grafana_token}`,
           'Content-Type': 'application/json'
@@ -389,6 +421,7 @@ app.get('/api/fields', verifyToken, async (req, res) => {
         to: "now"
       },
       {
+        httpsAgent: agent, // SSL代理,
         headers: {
           'Authorization': `Bearer ${Grafana_token}`,
           'Content-Type': 'application/json'
@@ -482,6 +515,7 @@ app.post('/create-dashboard', verifyToken, async (req, res) => {
     };
 
     const response = await axios.post(`${Grafana_URL}/api/dashboards/db`, dashboardData, {
+      httpsAgent: agent, // SSL代理,
       headers: {
         Authorization: `Bearer ${Grafana_token}`,
         'Content-Type': 'application/json',
@@ -540,6 +574,7 @@ app.post('/api/execute-query', verifyToken, async (req, res) => {
     };
 
     const response = await axios.post(`${Grafana_URL}/api/dashboards/db`, dashboardData, {
+      httpsAgent: agent, // SSL代理,
       headers: {
         Authorization: `Bearer ${Grafana_token}`,
         'Content-Type': 'application/json',
@@ -549,7 +584,7 @@ app.post('/api/execute-query', verifyToken, async (req, res) => {
     const panelId = 1; 
     const timestamp = new Date().getTime();
     // const soloPanelUrl = `${Grafana_URL}/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light&from=${from}&to=${to}&nocache=${timestamp}`;
-    const soloPanelUrl = `https://localhost/grafana/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light&from=${from}&to=${to}&nocache=${timestamp}`;
+    const soloPanelUrl = `https://localhost:3001/grafana/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light&from=${from}&to=${to}&nocache=${timestamp}`;
     console.log('Dashboard URL:', soloPanelUrl);
 
     // Adding cache-control headers to the response
@@ -565,26 +600,27 @@ app.post('/api/execute-query', verifyToken, async (req, res) => {
 });
 
 // 验证JWT并返回用户名
-app.get('/api/auth/verify', (req, res) => {
-  const token = req.cookies.session_token;  // 从cookie中获取JWT
-  console.log('Verifying token:', token);
-  if (!token) {
-    return res.status(401).send('Unauthorized');  // 如果没有token，则拒绝访问
-  }
+// app.get('/api/auth/verify', (req, res) => {
+//   const token = req.cookies.session_token;  // 从cookie中获取JWT
+//   console.log('Verifying token:', token);
+//   if (!token) {
+//     return res.status(401).send('Unauthorized');  // 如果没有token，则拒绝访问
+//   }
 
-  // 验证JWT
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
-    if (err) {
-      return res.status(401).send('Unauthorized');  // 如果验证失败，则拒绝访问
-    }
+//   // 验证JWT
+//   jwt.verify(token, privateKey, (err, decoded) => {
+//     if (err) {
+//       console.log('From nginx Token not verified: ', err.message);
+//       return res.status(401).send('Unauthorized');  // 如果验证失败，则拒绝访问
+//     }
 
-    console.log('Token verified:', decoded.user);
-    console.log('Successful verified', decoded);
-    // 返回用户名，供Nginx使用
-    res.setHeader('X-WEBAUTH-USER', decoded.user);  // 设置用户名为JWT中的user
-    res.status(200).send();  // 成功
-  });
-});
+//     console.log('From nginx Token verified:', decoded.user);
+//     console.log('From nginx Token Successful verified', decoded);
+//     // 返回用户名，供Nginx使用
+//     res.setHeader('X-WEBAUTH-USER', decoded.user);  // 设置用户名为JWT中的user
+//     res.status(200).send();  // 成功
+//   });
+// });
 
 // Start the server
 // const PORT = process.env.PORT || 5001;

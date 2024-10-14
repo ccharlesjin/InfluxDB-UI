@@ -8,7 +8,7 @@ import dayjs from 'dayjs';
 
 function TimeRangeSelector({ onTimeRangeChange }) {
   // 使用 dayjs 初始化时间
-  const [startTime, setStartTime] = useState(dayjs());
+  const [startTime, setStartTime] = useState(dayjs().subtract(1, 'day'),);
   const [endTime, setEndTime] = useState(dayjs());
 
   const handleApply = () => {
