@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Typography, Button, Select, MenuItem } from '@mui/material';
+import { Box, Typography, Button, Select, MenuItem, FormControl, InputLabel, TextField } from '@mui/material';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import TimeRangeSelector from './TimeRangeSelector';
@@ -228,6 +228,51 @@ export default function DragAndDropComponent() {
     end: dayjs() // 设置为当前时间
   });
   const [windowPeriod, setWindowPeriod] = useState("10m");
+  const [dashboardUid, setDashboardUid] = useState('');
+  const [chartType, setChartType] = useState('graph');
+  const [title, setTitle] = useState('');
+  const [error, setError] = useState('');
+  const [dashboards, setDashboards] = useState([]);
+  const [selectedDashboard, setSelectedDashboard] = useState('');
+
+  // const [chartTypeList, setChartTypeList] = useState([
+  //   'graph',
+  //   'stat',
+  //   'gauge',
+  //   'table',
+  //   'heatmap',
+  //   'bargauge'
+  // ]);
+  const [chartTypeList, setChartTypeList] = useState([
+    'graph',
+    'timeseries',   // Time series
+    'state-timeline',  // State timeline
+    'status-history',  // Status history
+    'barchart',     // Bar chart
+    'histogram',    // Histogram
+    'heatmap',      // Heatmap
+    'piechart',     // Pie chart
+    'candlestick',  // Candlestick
+    'gauge',        // Gauge
+    'trend',        // Trend
+    'xychart',      // XY chart
+    'stat',         // Stat
+    'bargauge',     // Bar gauge
+    'table',        // Table
+    'logs',         // Logs
+    'nodeGraph',    // Node graph
+    'traces',        // Traces
+    'flamegraph',   // Flame graph
+    'canvas',       // Canvas
+    'geomap',       // Geomap
+    'datagrid',     // Datagrid
+    'dashlist',     // Dashboard list
+    'alertlist',    // Alert list
+    'annotationslist',  // Annotations list
+    'text',         // Text
+    'news'          // News
+]);
+
   useEffect(() => {
     axios.defaults.withCredentials = true;
   }, []);
@@ -273,22 +318,30 @@ export default function DragAndDropComponent() {
       alert("Please select a valid time range");
       return;
     }
-
+    if (title.trim() === '') {
+      setError('Title cannot be empty');
+      return;
+    }
     try {
       // show loading page
       setLoading(true); 
+      console.log('Dashboard created with title:', title);
       const start = timeRange.start.unix() * 1000;
       const stop = timeRange.end.unix() * 1000;
 
-      const response = await axios.post('https://localhost:5001/api/execute-query', {
+      const response = await axios.post('https://localhost:5001/api/save-dashboard', {
         bucket,
         windowPeriod,
         from: start,
         to: stop,
-        fluxQuery: queryCode
+        fluxQuery: queryCode,
+        type: chartType,
+        title: title,
       });
-
+      console.log('response:', response);
+      setDashboardUid(response.data.dashboardUid);
       setIframeUrl(response.data.dashboardUrl);
+      fetchDashboards();
     } catch (error) {
       console.error('Error creating dashboard:', error);
     } finally {
@@ -336,20 +389,25 @@ export default function DragAndDropComponent() {
         bucket,
         windowPeriod,
         from: start,
-        to: stop })
+        to: stop,
+        type: chartType,
+      })
       .then((response) => {
         // if (response.data.status === 'success') {
         //   setIframeUrl(response.data.dashboardUrl);
         // }
         setIframeUrl(response.data.dashboardUrl);  // newUrl 是你更新后的 Grafana 面板 URL
         setLoading(false); 
-        console.log('Query sent successfully:', response.data);
+        setDashboardUid(response.data.dashboardUid);
+        fetchCurrentChartType();
+        console.log('setDashboardUid:', response.data.dashboardUid);
+        // console.log('Query sent successfully:', response.data);
       })
       .catch((error) => {
         console.error('Error sending query:', error);
       });
 
-  }, [bucket, droppedMeasurements, selectedFields, timeRange]);
+  }, [bucket, droppedMeasurements, selectedFields, timeRange, chartType]);
 
   useEffect(() => {
     if (droppedMeasurements.length > 0) {
@@ -430,6 +488,59 @@ export default function DragAndDropComponent() {
     }));
   };
 
+  useEffect(() => {
+    // 初始化时获取默认的图表类型
+    fetchCurrentChartType();
+  }, [droppedMeasurements]);
+
+  const fetchCurrentChartType = async () => {
+    console.log('Fetching current chart type...');
+    console.log('Dashboard UID:', dashboardUid);
+    if (dashboardUid) {
+      try {
+        const response = await axios.get(`https://localhost:5001/api/getDashboardType/${dashboardUid}`);
+        const defaultChartType = response.data.chartType || 'graph'; // 假设API返回当前图表类型
+        setChartType(defaultChartType);
+        console.log(`Chart type: ${defaultChartType}`);
+      } catch (error) {
+        console.error('Error fetching current chart type:', error);
+      }
+    };
+  };
+
+  const handleChartTypeChange = async (e) => {
+    const selectedChartType = e.target.value;
+    setChartType(selectedChartType);
+    const start = timeRange.start.unix() * 1000;
+    const stop = timeRange.end.unix() * 1000;
+    // 调用后端API更新图表类型
+    if(dashboardUid){
+      try {
+        const response = await axios.post('https://localhost:5001/api/updateDashboardType', {
+          dashboardUid: dashboardUid,
+          chartType: selectedChartType,
+          from: start,
+          to: stop,
+        });
+        setDashboardUid(response.data.dashboardUid);
+        setIframeUrl(response.data.dashboardUrl);
+        console.log(`Dashboard ${dashboardUid} updated to chart type: ${selectedChartType}`);
+
+      } catch (error) {
+        console.error('Error updating chart type:', error);
+      }
+    }
+  };
+
+  const handleTitleChange = (e) => {
+    setTitle(e.target.value);
+    if (e.target.value.trim() === '') {
+      setError('Title cannot be empty');
+    } else {
+      setError('');
+    }
+  };
+
   const Reset = () => {
     setBucket('');                    
     setMeasurements([]);               
@@ -445,6 +556,31 @@ export default function DragAndDropComponent() {
     setWindowPeriod('10m');         
     setErrorMessage('');        
   };
+  const fetchDashboards = async () => {
+    try {
+      const response = await axios.get('https://localhost:5001/api/dashboards');
+      setDashboards(response.data);
+    } catch (error) {
+      console.error('Error fetching dashboards:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboards();
+  }, []);
+
+  const handleDashboardChange = (e) => {
+    // const start = timeRange.start.unix() * 1000;
+    // const stop = timeRange.end.unix() * 1000;
+    const selected = dashboards.find(d => d.uid === e.target.value);
+    setSelectedDashboard(e.target.value);
+    const timestamp = new Date().getTime();
+
+    // 生成 iframe 的 URL
+    const url = `https://localhost:3001/grafana/d-solo/${selected.uid}?orgId=1&panelId=1&theme=light&from=${selected.from}&to=${selected.to}&nocache=${timestamp}`;
+    setIframeUrl(url);
+  };
+
   return (
     <DndProvider backend={HTML5Backend}>
       <div>
@@ -472,6 +608,8 @@ export default function DragAndDropComponent() {
               // frameBorder="0"
               title="Grafana Panel"
             />
+            // <object class="grafana-iframe"
+            // data={iframeUrl} width="100%" height="100%" title="Grafana Panel"></object>
           ) : (
             <Typography variant="h6">No data to display</Typography>
           )}
@@ -578,16 +716,25 @@ export default function DragAndDropComponent() {
               <p>End: {timeRange.end.format('YYYY-MM-DD HH:mm:ss')}</p>
             </div>
           )} */}
-          {/* <Box sx={{ marginTop: '1rem', textAlign: 'center' }}>
+          <TextField
+            label="Dashboard Title"
+            variant="outlined"
+            fullWidth
+            value={title}
+            onChange={handleTitleChange}
+            error={!!error}
+            helperText={error || ''}
+          />
+          <Box sx={{ marginTop: '1rem', textAlign: 'center' }}>
             <Button 
               variant="contained" 
               color="primary" 
               onClick={createDashboard} 
               disabled={loading}
             >
-              {loading ? "Creating..." : "Create Dashboard"}
+              {loading ? "Saving..." : "Save Dashboard"}
             </Button>
-          </Box> */}
+          </Box>
         </Box>
         <Box sx={{ marginTop: '1rem', textAlign: 'center' }}>
             <Button
@@ -599,6 +746,36 @@ export default function DragAndDropComponent() {
               {loading ? "Creating..." : "Reset"}
             </Button>
         </Box>
+        <FormControl fullWidth>
+        <InputLabel id="chart-type-label">Chart Type</InputLabel>
+        <Select
+          labelId="chart-type-label"
+          value={chartType}
+          onChange={handleChartTypeChange}
+          fullWidth
+        >
+          {chartTypeList.map((type, index) => (
+            <MenuItem key={index} value={type}>
+              {type}
+            </MenuItem>
+          ))}
+        </Select>
+          {/* 下拉菜单显示所有 dashboard */}
+          <TextField
+            select
+            label="Select Dashboard"
+            value={selectedDashboard}
+            onChange={handleDashboardChange}
+            fullWidth
+            variant="outlined"
+          >
+            {dashboards.map((dashboard) => (
+              <MenuItem key={dashboard.uid} value={dashboard.uid}>
+                {dashboard.title}
+              </MenuItem>
+            ))}
+          </TextField>
+      </FormControl>
       </div>
     </DndProvider>
   );

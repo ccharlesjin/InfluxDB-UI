@@ -179,6 +179,8 @@ app.post('/api/authenticate', async (req, res) => {
     }
   };
   
+  
+  
 
   try {
     // 检查数据源是否存在
@@ -186,8 +188,30 @@ app.post('/api/authenticate', async (req, res) => {
 
     if (!dataSource) {
       // 如果数据源不存在，则创建
+      console.log('Creating folder...');
+      console.log('InfluxDB_token first 10 letters: ' + influxDB_token.substring(0,10));
+      const folderData = {
+        uid: influxDB_token.substring(0,10),
+        title: influxDB_token.slice(0,10),
+      };
+      // 发送POST请求创建文件夹
+      axios.post(`${Grafana_URL}/api/folders`, folderData, {
+        httpsAgent: agent, // SSL代理,
+        headers: {
+          'Authorization': `Bearer ${Grafana_token}`, // Grafana API Token
+          'Content-Type': 'application/json',
+          "Accept": "application/json",
+        }
+      })
+      .then(response => {
+        console.log('Folder created successfully:', response.data);
+      })
+      .catch(error => {
+        console.log('Error creating folder:', error.response ? error.response.data : error.message);
+      });
+      
       dataSource = await createDataSource();
-      console.log('Data Source UID from createDataSource:', dataSource);
+
     } else {
       // 如果已存在，直接使用现有的数据源ID和UID
       globalData.Grafana_datasourceID = dataSource.uid;
@@ -472,88 +496,27 @@ app.get('/api/fields', verifyToken, async (req, res) => {
 //   });
 // });
 
-app.post('/create-dashboard', verifyToken, async (req, res) => {
+
+
+app.post('/api/save-dashboard', verifyToken, async (req, res) => {
   try {
     const Grafana_datasourceID = req.user.Grafana_datasourceID;
-    const { bucket, windowPeriod, from, to } = req.body;
+    const { bucket, windowPeriod, from, to, fluxQuery, title, type } = req.body;
+    const { influxDB_token } = req.user;
     const fromSeconds = Math.floor(from / 1000);  // 转换为秒
     const toSeconds = Math.floor(to / 1000);      // 转换为秒
 
-    console.log('Creating dashboard with the following params:', { bucket, windowPeriod, from, to, fromSeconds, toSeconds });
+    console.log('Saving dashboard with the following params:', { bucket, windowPeriod, from, to, fromSeconds, toSeconds });
     const dashboardData = {
       dashboard: {
         id: null,
-        title: "Generated Dashboard",
+        title: title,
+        tags: [`from:${from}`, `to:${to}`],
         timezone: "browser",
         panels: [
           {
-            type: "graph",
-            title: "Sleep Data Panel",
-            datasource: { type: 'influxdb', uid: Grafana_datasourceID },
-            targets: [
-              {
-                refId: 'A',
-                query: `
-                from(bucket: "${bucket}")
-                  |> range(start: ${fromSeconds}, stop: ${toSeconds})
-                  |> filter(fn: (r) => r["_measurement"] == "sleep_data")
-                  |> aggregateWindow(every: ${windowPeriod}, fn: mean, createEmpty: false)
-                  |> yield(name: "mean")
-                `,
-              },
-            ],
-            gridPos: {
-              x: 0,
-              y: 0,
-              w: 24,
-              h: 10
-            },
-          }
-        ],
-      },
-      overwrite: true,
-    };
-
-    const response = await axios.post(`${Grafana_URL}/api/dashboards/db`, dashboardData, {
-      httpsAgent: agent, // SSL代理,
-      headers: {
-        Authorization: `Bearer ${Grafana_token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-
-    // 使用 d-solo 和 panelId 生成单个面板的 URL
-    const panelId = 1; // 替换为你实际的 panelId
-    const soloPanelUrl = `${Grafana_URL}/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light&from=${from}&to=${to}&t=${Date.now()}`;
-
-    res.status(200).json({ dashboardUrl: soloPanelUrl });
-
-  } catch (error) {
-    console.error('Error creating dashboard:', error);
-    res.status(500).json({ message: 'Failed to create dashboard' });
-  }
-});
-
-app.post('/api/execute-query', verifyToken, async (req, res) => {
-  try {
-    const Grafana_datasourceID = req.user.Grafana_datasourceID;
-    const { bucket, windowPeriod, from, to, fluxQuery } = req.body;
-    const fromSeconds = Math.floor(from / 1000);
-    const toSeconds = Math.floor(to / 1000);
-
-    // Your existing logic for creating the dashboard
-    console.log('Creating dashboard with the following params:', { bucket, windowPeriod, from, to, fromSeconds, toSeconds, fluxQuery });
-    
-    const dashboardData = {
-      dashboard: {
-        id: null,
-        title: "Generated Dashboard",
-        timezone: "browser",
-        panels: [
-          {
-            type: "graph",
-            title: "Sleep Data Panel",
+            type: type,
+            title: title,
             datasource: { type: 'influxdb', uid: Grafana_datasourceID },
             targets: [
               {
@@ -570,7 +533,8 @@ app.post('/api/execute-query', verifyToken, async (req, res) => {
           }
         ],
       },
-      overwrite: true,
+      folderUid: influxDB_token.slice(0, 10),
+      overwrite: false,
     };
 
     const response = await axios.post(`${Grafana_URL}/api/dashboards/db`, dashboardData, {
@@ -581,10 +545,84 @@ app.post('/api/execute-query', verifyToken, async (req, res) => {
       },
     });
 
-    const panelId = 1; 
+
+    // 使用 d-solo 和 panelId 生成单个面板的 URL
+    const panelId = 1; // 替换为你实际的 panelId
+    const soloPanelUrl = `${Grafana_URL}/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light&from=${from}&to=${to}&t=${Date.now()}`;
+    console.log('Dashboard saved, Dashboard URL:', soloPanelUrl);
+    res.status(200).json({ dashboardUrl: soloPanelUrl });
+
+  } catch (error) {
+    console.log('Error saving dashboard:', error);
+    res.status(500).json({ message: 'Failed to create dashboard' });
+  }
+});
+
+app.post('/api/execute-query', verifyToken, async (req, res) => {
+  try {
+    const Grafana_datasourceID = req.user.Grafana_datasourceID;
+    const { influxDB_token } = req.user;
+    const { bucket, windowPeriod, from, to, fluxQuery, type } = req.body;
+    const fromSeconds = Math.floor(from / 1000);
+    const toSeconds = Math.floor(to / 1000);
+
+    // Your existing logic for creating the dashboard
+    console.log('Creating dashboard with the following params:', { bucket, windowPeriod, from, to, fromSeconds, toSeconds, fluxQuery });
+    
+    const dashboardData = {
+      dashboard: {
+        id: null,
+        title: "Generated Dashboard",
+        timezone: "browser",
+        panels: [
+          {
+            type: type,
+            title: "Editing Panel",
+            datasource: { type: 'influxdb', uid: Grafana_datasourceID },
+            targets: [
+              {
+                refId: 'A',
+                query: fluxQuery,
+              },
+            ],
+            gridPos: {
+              x: 0,
+              y: 0,
+              w: 24,
+              h: 10
+            },
+          }
+        ],
+      },
+      folderUid: influxDB_token.slice(0, 10),
+      overwrite: true,
+    };
+
+    const response = await axios.post(`${Grafana_URL}/api/dashboards/db`, dashboardData, {
+      httpsAgent: agent, // SSL代理,
+      headers: {
+        Authorization: `Bearer ${Grafana_token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    console.log('Dashboard created:', response.data);
+
+    const uid = response.data.uid;
+    // const id = response.data.id;
+
+    // const panelId = await axios.post(`${Grafana_URL}/api/dashboards/db/uid/${uid}`, dashboardData, {
+    //   httpsAgent: agent, // SSL代理,
+    //   headers: {
+    //     Authorization: `Bearer ${Grafana_token}`,
+    //     'Content-Type': 'application/json',
+    //   },
+    // });
+    
+    console.log('Dashboard created:', response.data);
     const timestamp = new Date().getTime();
     // const soloPanelUrl = `${Grafana_URL}/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light&from=${from}&to=${to}&nocache=${timestamp}`;
-    const soloPanelUrl = `https://localhost:3001/grafana/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light&from=${from}&to=${to}&nocache=${timestamp}`;
+    const soloPanelUrl = `https://localhost:3001/grafana/d-solo/${uid}?orgId=1&panelId=1&theme=light&from=${from}&to=${to}&nocache=${timestamp}`;
+    // const soloPanelUrl = `https://localhost:3001/grafana/d-solo/${response.data.uid}?orgId=1&refresh=5s&panelId=${panelId}&theme=light&from=${from}&to=${to}`;
     console.log('Dashboard URL:', soloPanelUrl);
 
     // Adding cache-control headers to the response
@@ -592,35 +630,134 @@ app.post('/api/execute-query', verifyToken, async (req, res) => {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     res.setHeader('Surrogate-Control', 'no-store');
-    res.status(200).json({ dashboardUrl: soloPanelUrl });
+    res.status(200).json({ dashboardUrl: soloPanelUrl, dashboardUid: response.data.uid });
   } catch (error) {
     console.error('Error creating dashboard:', error);
     res.status(500).json({ message: 'Failed to create dashboard' });
   }
 });
 
-// 验证JWT并返回用户名
-// app.get('/api/auth/verify', (req, res) => {
-//   const token = req.cookies.session_token;  // 从cookie中获取JWT
-//   console.log('Verifying token:', token);
-//   if (!token) {
-//     return res.status(401).send('Unauthorized');  // 如果没有token，则拒绝访问
-//   }
+// 获取当前Dashboard的图表类型
+app.get('/api/getDashboardType/:uid', verifyToken, async (req, res) => {
+  
+  const dashboardUid = req.params.uid;
+  try {
+    const response = await axios.get(`${Grafana_URL}/api/dashboards/uid/${dashboardUid}`, {
+      httpsAgent: agent,
+      headers: {
+        Authorization: `Bearer ${Grafana_token}`,
+        'Content-Type': 'application/json',
+      },
+    });
 
-//   // 验证JWT
-//   jwt.verify(token, privateKey, (err, decoded) => {
-//     if (err) {
-//       console.log('From nginx Token not verified: ', err.message);
-//       return res.status(401).send('Unauthorized');  // 如果验证失败，则拒绝访问
-//     }
+    const dashboard = response.data.dashboard;
+    const chartType = dashboard.panels[0]?.type || 'unknown'; // 假设第一个panel的图表类型
+    res.json({ chartType });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch dashboard data' });
+  }
+});
 
-//     console.log('From nginx Token verified:', decoded.user);
-//     console.log('From nginx Token Successful verified', decoded);
-//     // 返回用户名，供Nginx使用
-//     res.setHeader('X-WEBAUTH-USER', decoded.user);  // 设置用户名为JWT中的user
-//     res.status(200).send();  // 成功
-//   });
-// });
+// 更新Dashboard的图表类型
+app.post('/api/updateDashboardType', verifyToken, async (req, res) => {
+  const { dashboardUid, chartType, from, to } = req.body;
+  console.log('Updating dashboard with the following params:', { dashboardUid, chartType, from, to });
+  try {
+    // 获取当前Dashboard的数据
+    const dashboardResponse = await axios.get(`${Grafana_URL}/api/dashboards/uid/${dashboardUid}`, {
+      httpsAgent: agent,
+      headers: {
+        Authorization: `Bearer ${Grafana_token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    let dashboard = dashboardResponse.data.dashboard;
+
+    // 更新图表类型（假设更新第一个panel）
+    dashboard.panels.forEach(panel => {
+      panel.type = chartType;  // 更新图表类型
+    });
+
+    // 更新Dashboard
+    const updatedDashboard = {
+      dashboard: dashboard,
+      overwrite: true,  // 确保覆盖现有的Dashboard
+    };
+
+    const response = await axios.post(`${Grafana_URL}/api/dashboards/db`, updatedDashboard, {
+      httpsAgent: agent,
+      headers: {
+        Authorization: `Bearer ${Grafana_token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const panelId = response.data.id; 
+    const timestamp = new Date().getTime();
+    const soloPanelUrl = `https://localhost:3001/grafana/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light&from=${from}&to=${to}&nocache=${timestamp}`;
+
+    res.json({ message: 'Dashboard updated successfully', dashboardUrl: soloPanelUrl });
+  } catch (error) {
+    console.error('Error updating dashboard:', error);
+    res.status(500).json({ error: 'Failed to update dashboard' });
+  }
+});
+
+// 获取所有 Dashboards 的 API
+app.get('/api/dashboards', verifyToken, async (req, res) => {
+  console.log('Fetching dashboards...');
+  console.log('req.user: ', req.user);
+  // const { influxDB_token } = req.user;
+  try {
+    const { influxDB_token } = req.user;
+    const response = await axios.get(`${Grafana_URL}/api/search`, {
+      httpsAgent: agent,
+      headers: {
+        Authorization: `Bearer ${Grafana_token}`,
+      },
+      params: {
+        folderIds: influxDB_token.slice(0, 10),
+        type: 'dash-db'
+      }
+    });
+
+    const dashboards = response.data;
+    console.log('dashboards: ', dashboards);
+    // // 过滤出含有 panelId=1 的 dashboard，并获取它们的 title 和 uid
+    // const dashboardDetails = [];
+
+    // for (const dashboard of dashboards) {
+    //   dashboardDetails.push({
+    //     uid: dashboard.uid,
+    //     title: dashboard.title
+    //   });
+    // }
+
+    // 过滤并提取 dashboard 信息，包含 from 和 to 的 tags
+    const dashboardDetails = dashboards.filter(dashboard => dashboard.title !== 'Generated Dashboard')
+    .map((dashboard) => {
+      // 提取 tags 中的 from 和 to
+      const fromTag = dashboard.tags.find(tag => tag.startsWith('from:'));
+      const toTag = dashboard.tags.find(tag => tag.startsWith('to:'));
+
+      const from = fromTag ? fromTag.split('from:')[1] : null;
+      const to = toTag ? toTag.split('to:')[1] : null;
+
+      return {
+        uid: dashboard.uid,
+        title: dashboard.title,
+        from: from,
+        to: to,
+      };
+    });
+
+    res.json(dashboardDetails);
+  } catch (error) {
+    console.error('Error fetching dashboards:', error);
+    res.status(500).json({ error: 'Failed to fetch dashboards' });
+  }
+});
 
 // Start the server
 // const PORT = process.env.PORT || 5001;
