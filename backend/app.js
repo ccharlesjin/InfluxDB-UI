@@ -496,8 +496,6 @@ app.get('/api/fields', verifyToken, async (req, res) => {
 //   });
 // });
 
-
-
 app.post('/api/save-dashboard', verifyToken, async (req, res) => {
   try {
     const Grafana_datasourceID = req.user.Grafana_datasourceID;
@@ -553,10 +551,77 @@ app.post('/api/save-dashboard', verifyToken, async (req, res) => {
     res.status(200).json({ dashboardUrl: soloPanelUrl });
 
   } catch (error) {
-    console.log('Error saving dashboard:', error);
-    res.status(500).json({ message: 'Failed to create dashboard' });
+    if (error.response && error.response.status === 412) {
+      const errorMessage = error.response.data?.message || 'A dashboard with the same name already exists';
+      console.log('Dashboard creation failed:', errorMessage);
+      
+      res.status(412).json({
+        message: errorMessage,
+        status: error.response.data?.status || 'name-exists'
+      });
+    } else {
+      console.log('Error saving dashboard:', error);
+      res.status(500).json({ message: 'Failed to create dashboard' });
+    }
   }
 });
+
+// 更新特定 UID 的 dashboard 的 API
+app.post('/api/update-dashboard', verifyToken, async (req, res) => {
+  const influxdb_token = req.user.influxDB_token;
+  const { title, queryCode, overwrite, uid, chartType, from, to } = req.body;
+  console.log('Updating dashboard with the following params:', { title, queryCode, overwrite, uid });
+  try {
+    // 获取当前 dashboard 的完整数据
+    const getResponse = await axios.get(`${Grafana_URL}/api/dashboards/uid/${uid}`, {
+      httpsAgent: agent, // SSL代理,
+      headers: {
+        Authorization: `Bearer ${Grafana_token}`,
+      },
+    });
+
+    const dashboard = getResponse.data.dashboard;
+    
+    // 更新 dashboard 的 title 和 panel 中的 query
+    dashboard.title = title || dashboard.title;
+    dashboard.panels[0].title = title || dashboard.panels[0].title;
+    dashboard.panels[0].type = chartType || dashboard.panels[0].type;
+    dashboard.tags = [`from:${from}`, `to:${to}`];
+    dashboard.panels[0].targets[0].query = queryCode || dashboard.panels[0].targets[0].query;
+    
+    
+    // 准备更新 dashboard 的请求数据
+    const updateData = {
+      dashboard: dashboard,
+      overwrite: true,  // 是否覆盖
+      folderUid: influxdb_token.slice(0, 10),
+    };
+
+    // 更新 dashboard
+    const updateResponse = await axios.post(`${Grafana_URL}/api/dashboards/db`, updateData, {
+      httpsAgent: agent, // SSL代理,
+      headers: {
+        Authorization: `Bearer ${Grafana_token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    // 使用 d-solo 和 panelId 生成单个面板的 URL
+    const soloPanelUrl = `${Grafana_URL}/d-solo/${updateResponse.data.uid}?orgId=1&panelId=1&theme=light&from=${from}&to=${to}&t=${Date.now()}`;
+
+    console.log('Dashboard updated:', updateResponse.data);
+    res.json({
+      message: 'Dashboard updated successfully',
+      uid: uid,
+      newTitle: title || dashboard.title,
+      soloPanelUrl: soloPanelUrl,
+    });
+  } catch (error) {
+    console.error('Error updating dashboard:', error);
+
+    res.status(500).json({ error: 'Failed to update dashboard' });
+  }
+});
+
 
 app.post('/api/execute-query', verifyToken, async (req, res) => {
   try {
@@ -608,21 +673,10 @@ app.post('/api/execute-query', verifyToken, async (req, res) => {
     console.log('Dashboard created:', response.data);
 
     const uid = response.data.uid;
-    // const id = response.data.id;
-
-    // const panelId = await axios.post(`${Grafana_URL}/api/dashboards/db/uid/${uid}`, dashboardData, {
-    //   httpsAgent: agent, // SSL代理,
-    //   headers: {
-    //     Authorization: `Bearer ${Grafana_token}`,
-    //     'Content-Type': 'application/json',
-    //   },
-    // });
     
     console.log('Dashboard created:', response.data);
     const timestamp = new Date().getTime();
-    // const soloPanelUrl = `${Grafana_URL}/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light&from=${from}&to=${to}&nocache=${timestamp}`;
     const soloPanelUrl = `https://localhost:3001/grafana/d-solo/${uid}?orgId=1&panelId=1&theme=light&from=${from}&to=${to}&nocache=${timestamp}`;
-    // const soloPanelUrl = `https://localhost:3001/grafana/d-solo/${response.data.uid}?orgId=1&refresh=5s&panelId=${panelId}&theme=light&from=${from}&to=${to}`;
     console.log('Dashboard URL:', soloPanelUrl);
 
     // Adding cache-control headers to the response
@@ -651,7 +705,7 @@ app.get('/api/getDashboardType/:uid', verifyToken, async (req, res) => {
     });
 
     const dashboard = response.data.dashboard;
-    const chartType = dashboard.panels[0]?.type || 'unknown'; // 假设第一个panel的图表类型
+    const chartType = dashboard.panels[0]?.type || 'graph'; // 假设第一个panel的图表类型
     res.json({ chartType });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch dashboard data' });
@@ -693,9 +747,8 @@ app.post('/api/updateDashboardType', verifyToken, async (req, res) => {
       },
     });
 
-    const panelId = response.data.id; 
     const timestamp = new Date().getTime();
-    const soloPanelUrl = `https://localhost:3001/grafana/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light&from=${from}&to=${to}&nocache=${timestamp}`;
+    const soloPanelUrl = `https://localhost:3001/grafana/d-solo/${response.data.uid}?orgId=1&panelId=1&theme=light&from=${from}&to=${to}&nocache=${timestamp}`;
 
     res.json({ message: 'Dashboard updated successfully', dashboardUrl: soloPanelUrl });
   } catch (error) {
@@ -724,33 +777,44 @@ app.get('/api/dashboards', verifyToken, async (req, res) => {
 
     const dashboards = response.data;
     console.log('dashboards: ', dashboards);
-    // // 过滤出含有 panelId=1 的 dashboard，并获取它们的 title 和 uid
-    // const dashboardDetails = [];
+   
+    // 获取每个 dashboard 的详细信息并附加 chartType
+    const dashboardDetails = await Promise.all(
+      dashboards
+        .filter((dashboard) => dashboard.title !== 'Generated Dashboard')
+        .map(async (dashboard) => {
+          // 提取 tags 中的 from 和 to
+          const fromTag = dashboard.tags.find((tag) => tag.startsWith('from:'));
+          const toTag = dashboard.tags.find((tag) => tag.startsWith('to:'));
 
-    // for (const dashboard of dashboards) {
-    //   dashboardDetails.push({
-    //     uid: dashboard.uid,
-    //     title: dashboard.title
-    //   });
-    // }
+          const from = fromTag ? fromTag.split('from:')[1] : null;
+          const to = toTag ? toTag.split('to:')[1] : null;
 
-    // 过滤并提取 dashboard 信息，包含 from 和 to 的 tags
-    const dashboardDetails = dashboards.filter(dashboard => dashboard.title !== 'Generated Dashboard')
-    .map((dashboard) => {
-      // 提取 tags 中的 from 和 to
-      const fromTag = dashboard.tags.find(tag => tag.startsWith('from:'));
-      const toTag = dashboard.tags.find(tag => tag.startsWith('to:'));
+          // 获取 chartType
+          let chartType = 'graph'; // 默认值
+          try {
+            const chartResponse = await axios.get(`${Grafana_URL}/api/dashboards/uid/${dashboard.uid}`, {
+              httpsAgent: agent,
+              headers: {
+                Authorization: `Bearer ${Grafana_token}`,
+                'Content-Type': 'application/json',
+              },
+            });
+            const dashboardData = chartResponse.data.dashboard;
+            chartType = dashboardData.panels[0]?.type || 'graph'; // 获取第一个 panel 的图表类型
+          } catch (chartError) {
+            console.error(`Error fetching chart type for dashboard ${dashboard.uid}:`, chartError);
+          }
 
-      const from = fromTag ? fromTag.split('from:')[1] : null;
-      const to = toTag ? toTag.split('to:')[1] : null;
-
-      return {
-        uid: dashboard.uid,
-        title: dashboard.title,
-        from: from,
-        to: to,
-      };
-    });
+          return {
+            uid: dashboard.uid,
+            title: dashboard.title,
+            from: from,
+            to: to,
+            chartType: chartType, // 附加 chartType
+          };
+        })
+    );
 
     res.json(dashboardDetails);
   } catch (error) {
@@ -759,6 +823,61 @@ app.get('/api/dashboards', verifyToken, async (req, res) => {
   }
 });
 
+app.delete('/api/dashboards/:uid', verifyToken, async (req, res) => {
+  const { uid } = req.params;  // 获取要删除的 dashboard 的 uid
+  console.log(`Deleting dashboard with uid: ${uid}`);
+
+  try {
+    const response = await axios.delete(`${Grafana_URL}/api/dashboards/uid/${uid}`, {
+      httpsAgent: agent,  // SSL代理
+      headers: {
+        Authorization: `Bearer ${Grafana_token}`,  // 使用你的 Grafana API token
+      }
+    });
+
+    if (response.status === 200) {
+      console.log(`Dashboard with uid: ${uid} successfully deleted`);
+      res.json({ message: 'Dashboard successfully deleted' });
+    } else {
+      console.error(`Failed to delete dashboard with uid: ${uid}`);
+      res.status(500).json({ error: 'Failed to delete dashboard' });
+    }
+  } catch (error) {
+    console.error('Error deleting dashboard:', error);
+    res.status(500).json({ error: 'Error deleting dashboard' });
+  }
+});
+
+app.get('/api/dashboard/:uid', verifyToken, async (req, res) => {
+  const dashboardUid = req.params.uid;
+  
+  try {
+    const response = await axios.get(`${Grafana_URL}/api/dashboards/uid/${dashboardUid}`, {
+      httpsAgent: agent,
+      headers: {
+        Authorization: `Bearer ${Grafana_token}`,
+      },
+    });
+
+    const dashboard = response.data.dashboard;
+    
+    // 获取第一个 panel 的信息（如果有多个 panel，你可以遍历 panels）
+    const panel = dashboard.panels[0];
+
+    // 获取 panel 的 query
+    const query = panel.targets ? panel.targets[0].query : null;
+
+    res.status(200).json({
+      title: dashboard.title,
+      query: query,  // 传递查询
+      panelType: panel.type,  // 传递 panel 类型
+      panelTitle: panel.title,  // 传递 panel 标题
+    });
+  } catch (error) {
+    console.error('Error fetching dashboard:', error);
+    res.status(500).json({ message: 'Failed to fetch dashboard' });
+  }
+});
 // Start the server
 // const PORT = process.env.PORT || 5001;
 // app.listen(PORT, () => {

@@ -234,7 +234,9 @@ export default function DragAndDropComponent() {
   const [error, setError] = useState('');
   const [dashboards, setDashboards] = useState([]);
   const [selectedDashboard, setSelectedDashboard] = useState('');
-
+  const [isRestoring, setIsRestoring] = useState(false);  // 是否正在复现状态
+  const [isEditing, setIsEditing] = useState(false);  // 是否处于编辑模式
+  const [overwrite, setOverwrite] = useState(false);  // 后端 overwrite 标志
   // const [chartTypeList, setChartTypeList] = useState([
   //   'graph',
   //   'stat',
@@ -339,10 +341,19 @@ export default function DragAndDropComponent() {
         title: title,
       });
       console.log('response:', response);
+
       setDashboardUid(response.data.dashboardUid);
       setIframeUrl(response.data.dashboardUrl);
       fetchDashboards();
+      setTitle('');
+      setError('');
+      alert('Dashboard saved successfully');
     } catch (error) {
+      if (error.response && error.response.status === 412) {
+        alert(error.response.data.message); // 提示用户标题已存在
+      } else {
+        alert('Failed to save the dashboard. Please try again.');
+      }
       console.error('Error creating dashboard:', error);
     } finally {
       setLoading(false); // Hide loading after operation
@@ -351,14 +362,19 @@ export default function DragAndDropComponent() {
 
   // 生成查询代码
   const generateFluxQuery = useCallback(() => {
+    console.log('Trying to generating query..., with isRestoring: ', isRestoring);
+    if (isRestoring) return;
+    
     let query = `from(bucket: "${bucket}")\n`;
     query += `  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n`;
+    
     if (droppedMeasurements && droppedMeasurements.length > 0) {
       const measurementFilters = droppedMeasurements
         .map((measurement) => `r["_measurement"] == "${measurement}"`)
         .join(' or ');
       query += `  |> filter(fn: (r) => ${measurementFilters})\n`;
     }
+    
     const fields = Object.values(selectedFields).flat();
     if (fields && fields.length > 0) {
       const fieldFilters = fields
@@ -373,6 +389,7 @@ export default function DragAndDropComponent() {
     setQueryCode(query);
     console.log("query: ", query);
     console.log("queryCode: ", queryCode);
+
     if (!timeRange.start || !timeRange.end) {
       alert("Please select a valid time range");
       return;
@@ -393,29 +410,20 @@ export default function DragAndDropComponent() {
         type: chartType,
       })
       .then((response) => {
-        // if (response.data.status === 'success') {
-        //   setIframeUrl(response.data.dashboardUrl);
-        // }
         setIframeUrl(response.data.dashboardUrl);  // newUrl 是你更新后的 Grafana 面板 URL
         setLoading(false); 
         setDashboardUid(response.data.dashboardUid);
         fetchCurrentChartType();
         console.log('setDashboardUid:', response.data.dashboardUid);
         // console.log('Query sent successfully:', response.data);
+        // setSelectedDashboard('');  // 清空当前选择
       })
       .catch((error) => {
         console.error('Error sending query:', error);
       });
 
-  }, [bucket, droppedMeasurements, selectedFields, timeRange, chartType]);
+  }, [bucket, droppedMeasurements, selectedFields, timeRange, chartType, isRestoring]);
 
-  useEffect(() => {
-    if (droppedMeasurements.length > 0) {
-      generateFluxQuery();
-    } else {
-      setQueryCode('');
-    }
-  }, [generateFluxQuery]);
 
   // 处理 measurement 的拖拽放置
   const handleDropMeasurement = (measurement, action) => {
@@ -488,11 +496,6 @@ export default function DragAndDropComponent() {
     }));
   };
 
-  useEffect(() => {
-    // 初始化时获取默认的图表类型
-    fetchCurrentChartType();
-  }, [droppedMeasurements]);
-
   const fetchCurrentChartType = async () => {
     console.log('Fetching current chart type...');
     console.log('Dashboard UID:', dashboardUid);
@@ -540,22 +543,79 @@ export default function DragAndDropComponent() {
       setError('');
     }
   };
-
+  
   const Reset = () => {
-    setBucket('');                    
-    setMeasurements([]);               
-    setDroppedMeasurements([]);        
-    setMeasurementFields({});         
-    setSelectedFields({});           
-    setTimeRange({
-      start: dayjs().subtract(1, 'day'),
-      end: dayjs(),                  
+    return new Promise((resolve) => {
+      console.log('Resetting...');
+  
+      // 将所有状态重置为空或初始值
+      setBucket('');
+      setMeasurements([]);
+      setDroppedMeasurements([]);
+      setMeasurementFields({});
+      setSelectedFields({});
+      setTimeRange({
+        start: dayjs().subtract(1, 'day'),
+        end: dayjs(),
+      });
+      setQueryCode('');
+      setIframeUrl('');
+      setWindowPeriod('10m');
+      setErrorMessage('');
+      setSelectedDashboard('');
+  
+      // 等待下一个渲染周期后再 resolve，确保状态更新完成
+      setTimeout(() => {
+        resolve();
+        console.log('Resetting...done');
+      }, 0);  // 使用微小延迟确保状态完全重置后再继续
     });
-    setQueryCode('');            
-    setIframeUrl('');                
-    setWindowPeriod('10m');         
-    setErrorMessage('');        
   };
+
+  const ResetForSelect = () => {
+    return new Promise((resolve) => {
+      console.log('Resetting...');
+  
+      // 将所有状态重置为空或初始值
+      setBucket('');
+      setMeasurements([]);
+      setDroppedMeasurements([]);
+      setMeasurementFields({});
+      setSelectedFields({});
+      setTimeRange({
+        start: dayjs().subtract(1, 'day'),
+        end: dayjs(),
+      });
+      setQueryCode('');
+      setIframeUrl('');
+      setWindowPeriod('10m');
+      setErrorMessage('');
+      // setSelectedDashboard('');
+  
+      // 等待下一个渲染周期后再 resolve，确保状态更新完成
+      setTimeout(() => {
+        resolve();
+        console.log('Resetting...done');
+      }, 0);  // 使用微小延迟确保状态完全重置后再继续
+    });
+  };
+
+
+  const handleDashboardChange = async (e) => {
+    const selected = dashboards.find(d => d.uid === e.target.value);
+    setIsRestoring(true); 
+    setSelectedDashboard(selected.uid);  // 保存选中的 dashboard ID
+    await ResetForSelect();  // 等待 Reset 完成
+  };
+
+  useEffect(() => {
+    if (bucket === '' && measurements.length === 0 && droppedMeasurements.length === 0 && selectedDashboard !== '') {
+      console.log('Reset complete, ready to proceed with dashboard change');
+      // 这里你可以继续执行剩下的逻辑，保证 Reset 彻底完成后再进行后续的操作
+      handleDashboardChangePostReset(selectedDashboard);  // 执行剩余部分
+    }
+  }, [bucket, measurements, droppedMeasurements, selectedDashboard, handleDashboardChange]);
+
   const fetchDashboards = async () => {
     try {
       const response = await axios.get('https://localhost:5001/api/dashboards');
@@ -569,16 +629,204 @@ export default function DragAndDropComponent() {
     fetchDashboards();
   }, []);
 
-  const handleDashboardChange = (e) => {
-    // const start = timeRange.start.unix() * 1000;
-    // const stop = timeRange.end.unix() * 1000;
-    const selected = dashboards.find(d => d.uid === e.target.value);
-    setSelectedDashboard(e.target.value);
-    const timestamp = new Date().getTime();
+  const handleDashboardChangePostReset = async (e) => {
+    console.log("e: ", e, "dashboards: ", dashboards, "selectedDashboard: ", selectedDashboard, "isRestoring: ", isRestoring);  
 
-    // 生成 iframe 的 URL
-    const url = `https://localhost:3001/grafana/d-solo/${selected.uid}?orgId=1&panelId=1&theme=light&from=${selected.from}&to=${selected.to}&nocache=${timestamp}`;
-    setIframeUrl(url);
+    const selected = dashboards.find(d => d.uid === e);
+      setIsRestoring(true);
+      try {
+        // 发送请求获取选中 dashboard 的信息
+        const response = await axios.get(`https://localhost:5001/api/dashboard/${selected.uid}`);
+        const { query } = response.data;
+
+        // 使用查询更新 drag and drop 区域的状态
+        setQueryCode(query);
+        console.log('Restored query:', query);
+
+        // 解析 queryCode
+        const { bucket, measurements, fields } = parseQueryCode(query);
+        console.log('Parsed query:', bucket, measurements, fields);
+
+        // 设置 bucket 并获取对应的 measurements
+        setBucket(bucket);
+
+        // 获取 measurements
+        const measurementResponse = await axios.get('https://localhost:5001/api/measurements', {
+          params: { bucket },
+        }, {
+          withCredentials: true,  // 在请求配置中添加 withCredentials
+        });
+
+        const newMeasurements = measurementResponse.data.measurements;
+        setMeasurements(newMeasurements);
+
+        // 确保所有 measurements 和 fields 设置完成后再进行处理
+        await Promise.all(
+          measurements.map(async (measurement) => {
+            console.log('handleDropMeasurement:', measurement);
+            if (!droppedMeasurements.includes(measurement)) {
+              setDroppedMeasurements((prev) => [...prev, measurement]);
+
+              // 获取 fields
+              const response = await axios.get('https://localhost:5001/api/fields', {
+                params: { bucket, measurement },
+              });
+              
+              // 只保留当前 measurement 对应的字段
+              const currentMeasurementFields = fields.filter(
+                (field) => response.data.fields.includes(field)
+              );
+              console.log('Current measurement fields:', currentMeasurementFields)
+              
+              // 过滤掉从 parseQueryCode 获取的已选中的 fields
+              const availableFields = response.data.fields.filter(
+                (field) => !fields.includes(field)  // 排除已选中的 fields
+              );
+
+              // 更新 measurementFields 和 selectedFields
+              setMeasurementFields((prev) => ({
+                ...prev,
+                [measurement]: availableFields,  // 仅包含未选择的 fields
+              }));
+
+              setSelectedFields((prev) => ({
+                ...prev,
+                [measurement]: currentMeasurementFields,  // 更新为已选择的 fields
+              }));
+            }
+          })
+        );
+
+        setSelectedDashboard(e);
+        // 将时间戳转换为 dayjs 对象
+        const startTime = dayjs(parseInt(selected.from)); // 假设 from 是时间戳
+        const endTime = dayjs(parseInt(selected.to)); // 假设 to 是时间戳
+        setTimeRange({ start: startTime, end: endTime });
+        setChartType(selected.chartType);
+        const timestamp = new Date().getTime();
+        const url = `https://localhost:3001/grafana/d-solo/${selected.uid}?orgId=1&panelId=1&theme=light&from=${selected.from}&to=${selected.to}&nocache=${timestamp}`;
+        setIframeUrl(url);
+
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      } finally {
+        // setIsRestoring(false);
+      }
+  };
+
+
+  useEffect(() => {
+    console.log('isRestoring 1:', isRestoring);
+    if (!isRestoring) {  // 如果不是正在复现状态，才生成查询
+      if (droppedMeasurements.length > 0) {
+        generateFluxQuery();  // 重新生成查询
+      } else {
+        setQueryCode('');  // 如果没有 measurement，清空查询
+        console.log('queryCode is cleaned up');
+      }
+    }
+  }, [droppedMeasurements, selectedFields, isRestoring, generateFluxQuery]);
+
+  const handleDeleteDashboard = async (uid) => {
+    try {
+      const response = await axios.delete(`https://localhost:5001/api/dashboards/${uid}`);
+      if (response.status === 200) {
+        alert('Dashboard successfully deleted');
+        // 刷新或更新状态以反映删除操作
+        
+        // 清空 selectedDashboard，并更新 dashboards 列表
+        setSelectedDashboard('');  // 清空当前选择
+        Reset();                // 重置所有状态
+        fetchDashboards();
+        // setDashboards(prevDashboards => prevDashboards.filter(dashboard => dashboard.uid !== dashboardUid));
+      }
+    } catch (error) {
+      console.error('Error deleting dashboard:', error);
+      alert('Failed to delete dashboard');
+    }
+  };
+
+  const handleEditDashboard = () => {
+    setIsEditing(true);
+    setIsRestoring(false); // 停止复现
+    setOverwrite(true); // 标记为覆盖模式
+    console.log('isRestoring 2:', isRestoring, 'isEditing:', isEditing);
+    setTitle(dashboards.find(d => d.uid === selectedDashboard).title);
+  };
+
+  // 退出编辑并保存
+  const handleSaveAndExitEdit = async () => {
+    try {
+      const start = timeRange.start.unix() * 1000;
+      const stop = timeRange.end.unix() * 1000;
+      // 将编辑后的 Query 和其他数据保存到后端
+      let query = `from(bucket: "${bucket}")\n`;
+      query += `  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n`;
+      
+      if (droppedMeasurements && droppedMeasurements.length > 0) {
+        const measurementFilters = droppedMeasurements
+          .map((measurement) => `r["_measurement"] == "${measurement}"`)
+          .join(' or ');
+        query += `  |> filter(fn: (r) => ${measurementFilters})\n`;
+      }
+      
+      const fields = Object.values(selectedFields).flat();
+      if (fields && fields.length > 0) {
+        const fieldFilters = fields
+          .map((field) => `r["_field"] == "${field}"`)
+          .join(' or ');
+        query += `  |> filter(fn: (r) => ${fieldFilters})\n`;
+      }
+      ;
+
+      query += '  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: "mean")';
+
+      console.log('Query:', query);
+      console.log('queryCode:', queryCode);
+      const response = await axios.post('https://localhost:5001/api/update-dashboard', {
+        uid: selectedDashboard,
+        title: title,
+        queryCode: query,
+        overwrite: true,
+        chartType: chartType,
+        from: start,
+        to: stop,
+      });
+      setIframeUrl(response.data.soloPanelUrl);
+      setTitle('');  // 清空标题
+      alert('Dashboard updated successfully');
+    } catch (error) {
+      console.error('Failed to update dashboard', error);
+      alert('Failed to save the changes');
+    } finally {
+      setIsRestoring(true);
+      setIsEditing(false);
+      setOverwrite(false); // 恢复为普通模式
+      fetchDashboards();  // 刷新 dashboards
+      // setSelectedDashboard('');  // 清空当前选择
+    }
+  };
+
+  // 复制 Query 并退出按钮
+  const handleCopyAndExit = () => {
+    setIsRestoring(false);  // 停止复现状态
+    setSelectedDashboard('');  // 清空当前选择
+    setTitle('');  // 清空标题
+    // 清空其他相关状态，如 droppedMeasurements 等
+  };
+
+  // 解析 queryCode 的函数
+  const parseQueryCode = (queryCode) => {
+    const bucketMatch = queryCode.match(/from\(bucket: "([^"]+)"\)/);
+    const measurementMatch = [...queryCode.matchAll(/r\["_measurement"\] == "([^"]+)"/g)];
+    const fieldMatch = [...queryCode.matchAll(/r\["_field"\] == "([^"]+)"/g)];
+  
+    const bucket = bucketMatch ? bucketMatch[1] : '';
+    const measurements = measurementMatch ? measurementMatch.map(m => m[1]) : [];
+    const fields = fieldMatch ? fieldMatch.map(f => f[1]) : [];
+  
+    console.log("bucket:", bucket, "measurements:", measurements, "fields:", fields);
+    return { bucket, measurements, fields };
   };
 
   return (
@@ -708,7 +956,7 @@ export default function DragAndDropComponent() {
           >
             Select Time Range
           </Typography>
-          <TimeRangeSelector onTimeRangeChange={setTimeRange} />
+          <TimeRangeSelector onTimeRangeChange={setTimeRange} timeRange={timeRange} />
           {/* {timeRange.start && timeRange.end && (
             <div>
               <h2>Selected Time Range:</h2>
@@ -775,6 +1023,69 @@ export default function DragAndDropComponent() {
               </MenuItem>
             ))}
           </TextField>
+          
+          {/* {selectedDashboard && (
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => handleDeleteDashboard(selectedDashboard)}  // 传递 selectedDashboard 作为 uid
+            >
+              Delete Dashboard
+            </Button>
+          )} */}
+
+          {/* 按钮区域 */}
+          <Box sx={{ display: 'flex', gap: 2, marginBottom: 2 }}>
+            {selectedDashboard && !isEditing && (
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleEditDashboard}
+              >
+                Modify Current Dashboard
+              </Button>
+            )}
+            
+            {isEditing && (
+              <>
+                <Button
+                  variant="contained"
+                  color="success"
+                  onClick={handleSaveAndExitEdit}
+                >
+                  Save and Exit Edit
+                </Button>
+                <Button
+                  variant="contained"
+                  color="warning"
+                  onClick={() => setIsEditing(false)}
+                >
+                  Exit Edit Without Saving
+                </Button>
+              </>
+            )}
+            
+            {selectedDashboard && !isEditing && (
+              <Button
+                variant="contained"
+                color="info"
+                onClick={handleCopyAndExit}
+              >
+                Copy Query and Exit
+              </Button>
+            )}
+
+            {selectedDashboard && (
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={() => handleDeleteDashboard(selectedDashboard)}  // 传递 selectedDashboard 作为 uid
+              >
+                Delete Dashboard
+              </Button>
+            )}
+          </Box>
+          
       </FormControl>
       </div>
     </DndProvider>
