@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Typography, Button, Select, MenuItem, useTheme, TextField, FormControl, InputLabel } from '@mui/material';
+import { Box, Typography, Button, Select, MenuItem, useTheme, FormControl, InputLabel, TextField } from '@mui/material';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import TimeRangeSelector from './TimeRangeSelector';
@@ -12,100 +12,139 @@ const ItemTypes = {
 };
 
 function MeasurementItem({ measurement, location }) {
-  // location 表示 measurement 的位置，可能的值有 'list' 和 'dropArea'
-  const theme = useTheme();
-  const [{ isDragging }, drag] = useDrag(() => ({
-    type: ItemTypes.MEASUREMENT,
-    item: { measurement, location },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  }), [measurement, location]);
-
-  return (
-    <Box
-      ref={drag}
-      sx={{
-        opacity: isDragging ? 0.5 : 1,
-        padding: '10px',
-        margin: '5px',
-        backgroundColor: theme.palette.primary.main,
-        border: `1px solid ${theme.palette.secondary.main}`,
-        borderRadius: '4px',
-        cursor: 'grab',
-      }}
-    >
-      {measurement}
-    </Box>
-  );
-}
-
+    // location 表示 measurement 的位置，可能的值有 'list' 和 'dropArea'
+    const theme = useTheme();
+    const [{ isDragging }, drag] = useDrag(() => ({
+        type: ItemTypes.MEASUREMENT,
+        item: { measurement, location },
+        collect: (monitor) => ({
+            isDragging: monitor.isDragging(),
+        }),
+    }), [measurement, location]);
+  
+    return (
+      <Box
+        ref={drag}
+        // sx={{
+        //   opacity: isDragging ? 0.5 : 1,
+        //   padding: '10px',
+        //   margin: '5px',
+        //   backgroundColor: location === 'list' ? '#6889c4' : '#ffcc80',
+        //   border: '1px solid #00796b',
+        //   borderRadius: '4px',
+        //   cursor: 'grab',
+        // }}
+        sx={{
+          opacity: isDragging ? 0.5 : 1,
+          padding: '10px',
+          margin: '5px',
+          backgroundColor: theme.palette.primary.main,
+          border: `1px solid ${theme.palette.secondary.main}`,
+          borderRadius: '4px',
+          cursor: 'grab',
+        }}
+      >
+        {measurement}
+      </Box>
+    );
+  }
+  
 function MeasurementList({ measurements, onDropMeasurement }) {
   const theme = useTheme();
   const [{ isOver }, drop] = useDrop(() => ({
     accept: ItemTypes.MEASUREMENT,
     drop: (item) => {
-      if (item.location === 'dropArea') {
+    if (item.location === 'dropArea') {
         // 从 DropArea 拖回 MeasurementList
         onDropMeasurement(item.measurement, 'remove');
-      }
+    }
     },
     collect: (monitor) => ({
-      isOver: monitor.isOver(),
+    isOver: monitor.isOver(),
     }),
-  }), [onDropMeasurement]);
+}), [onDropMeasurement]);
 
-  return (
-    <div
-      ref={drop}
-      style={{
-        backgroundColor: isOver ? theme.palette.primary.light : theme.palette.background.default,
-        padding: '10px',
-        minHeight: '200px',
-      }}
-    >
-      {measurements.map((measurement) => (
-        <MeasurementItem key={measurement} measurement={measurement} location="list" />
-      ))}
-    </div>
-  );
+return (
+  <div
+    ref={drop}
+    style={{
+      backgroundColor: isOver ? theme.palette.primary.light : theme.palette.background.default,
+      padding: '10px',
+      minHeight: '200px',
+    }}
+  >
+    {measurements.map((measurement) => (
+      <MeasurementItem key={measurement} measurement={measurement} location="list" />
+    ))}
+  </div>
+);
 }
-
+  
 
 function DropArea({ droppedMeasurements, onDropMeasurement }) {
   const theme = useTheme();
   const [{ isOver }, drop] = useDrop(() => ({
     accept: ItemTypes.MEASUREMENT,
     drop: (item) => {
-      if (item.location === 'list') {
+    if (item.location === 'list') {
         // 从 MeasurementList 拖入
         onDropMeasurement(item.measurement, 'add');
-      }
+    }
     },
     collect: (monitor) => ({
-      isOver: monitor.isOver(),
+    isOver: monitor.isOver(),
     }),
-  }), [onDropMeasurement]);
+}), [onDropMeasurement]);
 
-  return (
-    <div
-      ref={drop}
-      style={{
-        backgroundColor: isOver ? theme.palette.primary.light : theme.palette.background.default,
-        padding: '10px',
-        minHeight: '200px',
-        border: `1px solid rgba(204, 204, 204, 0.3)`,
-        paddingTop: '0px'
-      }}
-    >
-      <p style={{ textAlign: 'center', marginTop: '0px' }}>Drag measurements here</p>
-      {droppedMeasurements.map((measurement) => (
-        <MeasurementItem key={measurement} measurement={measurement} location="dropArea" />
-      ))}
-    </div>
-  );
+return (
+  <div
+    ref={drop}
+    style={{
+      backgroundColor: isOver ? theme.palette.primary.light : theme.palette.background.default,
+      padding: '10px',
+      minHeight: '200px',
+      border: `1px solid rgba(204, 204, 204, 0.3)`,
+      paddingTop: '0px'
+    }}
+  >
+    <p style={{ textAlign: 'center', marginTop: '0px' }}>Drag measurements here</p>
+    {droppedMeasurements.map((measurement) => (
+      <MeasurementItem key={measurement} measurement={measurement} location="dropArea" />
+    ))}
+  </div>
+);
 }
+  
 
+// function FieldItem({ field, measurement, location }) {
+//     const [{ isDragging }, drag] = useDrag(
+//         () => ({
+//             type: ItemTypes.FIELD,
+//             item: { field, measurement, location },
+//             collect: (monitor) => ({
+//             isDragging: monitor.isDragging(),
+//             }),
+//         }),
+//         [field, measurement, location]
+//     );
+  
+//     return (
+//         <Box
+//             ref={drag}
+//             sx={{
+//             opacity: isDragging ? 0.5 : 1,
+//             padding: '5px',
+//             margin: '5px',
+//             backgroundColor: location === 'available' ? '#f0ad4e' : '#5cb85c',
+//             border: '1px solid #eea236',
+//             borderRadius: '4px',
+//             cursor: 'grab',
+//             }}
+//         >
+//             {field}
+//         </Box>
+//     );
+// }
 
 function FieldItem({ field, measurement, location }) {
   const theme = useTheme();
@@ -138,6 +177,45 @@ function FieldItem({ field, measurement, location }) {
     </Box>
   );
 }
+
+// function FieldList({ fields, measurement, onFieldRemove }) {
+//     const [{ isOver }, drop] = useDrop(
+//       () => ({
+//         accept: ItemTypes.FIELD,
+//         drop: (item) => {
+//           if (item.measurement === measurement && item.location === 'selected') {
+//             // 从选中列表拖回可用列表
+//             onFieldRemove(measurement, item.field);
+//           }
+//         },
+//         collect: (monitor) => ({
+//           isOver: monitor.isOver(),
+//         }),
+//       }),
+//       [onFieldRemove, measurement]
+//     );
+  
+//     return (
+//       <div
+//         ref={drop}
+//         style={{
+//           backgroundColor: isOver ? '#fff5a0' : 'lightyellow',
+//           padding: '10px',
+//           minHeight: '100px',
+//         }}
+//       >
+//         <p>Available Fields</p>
+//         {fields.map((field) => (
+//           <FieldItem
+//             key={field}
+//             field={field}
+//             measurement={measurement}
+//             location="available"
+//           />
+//         ))}
+//       </div>
+//     );
+// }
 
 function FieldList({ fields, measurement, onFieldRemove }) {
   const theme = useTheme();
@@ -183,6 +261,45 @@ function FieldList({ fields, measurement, onFieldRemove }) {
     // </div>
   );
 }
+
+// function SelectedFieldList({ fields, measurement, onFieldSelect }) {
+//     const [{ isOver }, drop] = useDrop(
+//       () => ({
+//         accept: ItemTypes.FIELD,
+//         drop: (item) => {
+//           if (item.measurement === measurement && item.location === 'available') {
+//             // 从可用列表拖到选中列表
+//             onFieldSelect(measurement, item.field);
+//           }
+//         },
+//         collect: (monitor) => ({
+//           isOver: monitor.isOver(),
+//         }),
+//       }),
+//       [onFieldSelect, measurement]
+//     );
+  
+//     return (
+//       <div
+//         ref={drop}
+//         style={{
+//           backgroundColor: isOver ? '#baffc9' : 'lightgreen',
+//           padding: '10px',
+//           minHeight: '100px',
+//         }}
+//       >
+//         <p>Selected Fields</p>
+//         {fields.map((field) => (
+//           <FieldItem
+//             key={field}
+//             field={field}
+//             measurement={measurement}
+//             location="selected"
+//           />
+//         ))}
+//       </div>
+//     );
+// }
 
 function SelectedFieldList({ fields, measurement, onFieldSelect }) {
   const theme = useTheme();
@@ -239,14 +356,12 @@ export default function DragAndDropComponent() {
   const [measurementFields, setMeasurementFields] = useState({});
   const [selectedFields, setSelectedFields] = useState({});
   const [queryCode, setQueryCode] = useState('');
-  const [isQueryVisible, setIsQueryVisible] = useState(false);
   // const [timeRange, setTimeRange] = useState({ start: null, end: null });
   const [timeRange, setTimeRange] = useState({
     start: dayjs().subtract(1, 'day'), // 设置为一天前的时间
     end: dayjs() // 设置为当前时间
   });
   const [windowPeriod, setWindowPeriod] = useState("10m");
-  const theme = useTheme();
   const [dashboardUid, setDashboardUid] = useState('');
   const [chartType, setChartType] = useState('graph');
   const [title, setTitle] = useState('');
@@ -435,13 +550,6 @@ export default function DragAndDropComponent() {
 
   }, [bucket, droppedMeasurements, selectedFields, timeRange, chartType, isRestoring]);
 
-  // useEffect(() => {
-  //   if (droppedMeasurements.length > 0) {
-  //     generateFluxQuery();
-  //   } else {
-  //     setQueryCode('');
-  //   }
-  // }, [generateFluxQuery]);
 
   // 处理 measurement 的拖拽放置
   const handleDropMeasurement = (measurement, action) => {
@@ -452,14 +560,14 @@ export default function DragAndDropComponent() {
       }
     } else if (action === 'remove') {
       setDroppedMeasurements((prev) => prev.filter((m) => m !== measurement));
-
+  
       // 清理对应的 fields 和选中状态
       setMeasurementFields((prev) => {
         const newFields = { ...prev };
         delete newFields[measurement];
         return newFields;
       });
-
+  
       setSelectedFields((prev) => {
         const newSelected = { ...prev };
         delete newSelected[measurement];
@@ -467,7 +575,7 @@ export default function DragAndDropComponent() {
       });
     }
   };
-
+  
 
   // 获取 measurement 的 fields
   const fetchFieldsForMeasurement = async (measurement) => {
@@ -501,7 +609,7 @@ export default function DragAndDropComponent() {
       [measurement]: prev[measurement].filter((f) => f !== field),
     }));
   };
-
+  
   const handleFieldRemove = (measurement, field) => {
     // 将字段从选中列表移回可用列表
     setMeasurementFields((prev) => ({
@@ -561,7 +669,7 @@ export default function DragAndDropComponent() {
       setError('');
     }
   };
-
+  
   const Reset = () => {
     return new Promise((resolve) => {
       console.log('Resetting...');
@@ -732,6 +840,7 @@ export default function DragAndDropComponent() {
       }
   };
 
+
   useEffect(() => {
     console.log('isRestoring 1:', isRestoring);
     if (!isRestoring) {  // 如果不是正在复现状态，才生成查询
@@ -743,14 +852,6 @@ export default function DragAndDropComponent() {
       }
     }
   }, [droppedMeasurements, selectedFields, isRestoring, generateFluxQuery]);
-
-  const handleEditDashboard = () => {
-    setIsEditing(true);
-    setIsRestoring(false); // 停止复现
-    setOverwrite(true); // 标记为覆盖模式
-    console.log('isRestoring 2:', isRestoring, 'isEditing:', isEditing);
-    setTitle(dashboards.find(d => d.uid === selectedDashboard).title);
-  };
 
   const handleDeleteDashboard = async (uid) => {
     try {
@@ -769,6 +870,14 @@ export default function DragAndDropComponent() {
       console.error('Error deleting dashboard:', error);
       alert('Failed to delete dashboard');
     }
+  };
+
+  const handleEditDashboard = () => {
+    setIsEditing(true);
+    setIsRestoring(false); // 停止复现
+    setOverwrite(true); // 标记为覆盖模式
+    console.log('isRestoring 2:', isRestoring, 'isEditing:', isEditing);
+    setTitle(dashboards.find(d => d.uid === selectedDashboard).title);
   };
 
   // 退出编辑并保存
@@ -849,261 +958,174 @@ export default function DragAndDropComponent() {
   return (
     <DndProvider backend={HTML5Backend}>
       <div>
+        
         {/* Visualization area */}
-        <Box
-          display="flex"
-          justifyContent="center"
-          alignItems="center"
-          width="100%"
-          // maxWidth="1200px" 
-          height="400px"
-          borderRadius="6px"
-          boxShadow="0px 2px 10px rgba(0,0,0,0.2)"
-          bgcolor={theme.palette.background.default}
-          p={2}
-          mb={2}
+        <Box 
+          display="flex" 
+          justifyContent="center" 
+          alignItems="center" 
+          width="100%" 
+          maxWidth="1200px" 
+          height="400px" 
+          borderRadius="6px" 
+          boxShadow="0px 2px 10px rgba(0,0,0,0.1)" 
+          bgcolor="primary" 
+          p={2} 
+          mb={4}
         >
-          {isQueryVisible ? (
-            <pre>{queryCode}</pre>
+          {iframeUrl ? (
+            <iframe
+              // key={iframeUrl + new Date().getTime()}
+              src={iframeUrl}
+              width="100%"
+              height="100%"
+              // frameBorder="0"
+              title="Grafana Panel"
+            />
+            // <object class="grafana-iframe"
+            // data={iframeUrl} width="100%" height="100%" title="Grafana Panel"></object>
           ) : (
-            iframeUrl ? (
-              <iframe
-                src={iframeUrl}
-                width="100%"
-                height="100%"
-                title="Grafana Panel"
-              />
-            ) : (
-              <Typography variant="h6">No data to display</Typography>
-            )
+            <Typography variant="h6">No data to display</Typography>
           )}
         </Box>
-
+        
         <Box
-  flex={1}
-  height="110px"
-  borderRadius="6px"
-  boxShadow="0px 2px 10px rgba(0,0,0,0.2)"
-  bgcolor="primary"
-  p={2}
-  display="flex"
-  alignItems="center"
-  gap={2}
-  mb={2}
->
-  <h3>Bucket:</h3>
-  
-  {/* Wrapper for the Selects */}
-  <Box display="flex" flexGrow={1} gap={2}>
-    <Select
-      value={bucket}
-      onChange={(e) => setBucket(e.target.value)}
-      style={{ flexGrow: 1 }} // Allow it to grow
-    >
-      {bucketList.length > 0 ? (
-        bucketList
-          .filter((bucketName) => !bucketName.startsWith('_'))
-          .map((bucketName, index) => (
-            <MenuItem key={index} value={bucketName}>
-              {bucketName}
-            </MenuItem>
-          ))
-      ) : (
-        <MenuItem disabled>No buckets available</MenuItem>
-      )}
-    </Select>
-
-    {/* <InputLabel id="chart-type-label">Chart Type</InputLabel> */}
-    <h3>Chart Type:</h3>
-    <Select
-      labelId="chart-type-label"
-      value={chartType}
-      onChange={handleChartTypeChange}
-      style={{ flexGrow: 1 }} // Allow it to grow
-    >
-      {chartTypeList.map((type, index) => (
-        <MenuItem key={index} value={type}>
-          {type}
-        </MenuItem>
-      ))}
-    </Select>
-  </Box>
-
-  <Box sx={{ textAlign: 'center' }}>
-    <Button
-      variant="contained"
-      color="primary"
-      onClick={Reset}
-      disabled={loading}
-    >
-      {loading ? "Creating..." : "Reset"}
-    </Button>
-  </Box>
-
-  <Button
-    variant="contained"
-    onClick={() => setIsQueryVisible((prev) => !prev)}
-  >
-    {isQueryVisible ? 'Show Graph' : 'Show Query'}
-  </Button>
-</Box>
-
-
-        <Box
-          display="flex"
-          flexDirection="column"
-          width="100%"
-          p={2}
-          mb={2}
+          flex={1}
+          height="200px"
           borderRadius="6px"
           boxShadow="0px 2px 10px rgba(0,0,0,0.2)"
-          bgcolor={theme.palette.background.default}
+          bgcolor="primary"
+          p={2}
         >
-          {/* Main Container */}
-          <Box display="flex" justifyContent="space-between" width="100%" mb={2}>
-            {/* Measurement Box */}
-            {bucket ? (
-            <Box
-              flex={1}
-              border="1px solid #ccc"
-              padding="10px"
-              marginRight="10px"
-              borderRadius="6px"
-            >
-              <h3 style={{ margin: 0, textAlign: 'center', paddingBottom: '10px' }}>Measurement</h3>
-              {/* Drop Area for Measurements */}
-              <Box mb={1.5}>
-                <DropArea
-                  droppedMeasurements={droppedMeasurements}
-                  onDropMeasurement={handleDropMeasurement}
-                />
-              </Box>
-              {/* Measurement List */}
-              <Box style={{ border: `1px solid rgba(204, 204, 204, 0.3)` }}>
+          <Typography variant="body1">Drag and Drop Area</Typography>
+          <label>Bucket Name:</label>
+          <Select value={bucket} onChange={(e) => setBucket(e.target.value)} fullWidth>
+            {bucketList.length > 0 ? (
+              bucketList
+                .filter((bucketName) => !bucketName.startsWith('_'))
+                .map((bucketName, index) => (
+                  <MenuItem key={index} value={bucketName}>
+                    {bucketName}
+                  </MenuItem>
+                ))
+            ) : (
+              <MenuItem disabled>No buckets available</MenuItem>
+            )}
+          </Select>
+        </Box>
+
+        <div style={{ display: 'flex', flexDirection: 'row' }}>
+            {/* Measurement List */}
+            <div style={{ flex: 1, marginRight: '10px' }}>
+                <p>Measurement List</p>
                 {measurements.length > 0 ? (
-                  <MeasurementList
-                    measurements={measurements}
-                    onDropMeasurement={handleDropMeasurement}
-                  />
+                <MeasurementList measurements={measurements} onDropMeasurement={handleDropMeasurement} />
                 ) : (
-                  <Box style={{ textAlign: 'center' }}>Select a bucket to load measurements</Box>
+                <p>Select a bucket to load measurements</p>
                 )}
-              </Box>
-            </Box>
-            ) : (
-              <Box
-              flex={1}
-              border="1px solid #ccc"
-              padding="10px"
-              marginRight="10px"
-              borderRadius="6px"
-              display="flex"
-              textAlign='center'
-              justifyContent="center"
-              alignItems="center"
-              >Please select a bucket</Box>
-            )}
+            </div>
 
+            {/* Drop Area */}
+            <div style={{ flex: 1, marginLeft: '10px' }}>
+                <p>Drop Area</p>
+                <DropArea
+                droppedMeasurements={droppedMeasurements}
+                onDropMeasurement={handleDropMeasurement}
+                />
+            </div>
+        </div>
 
-            {/* Fields Box */}
-            {droppedMeasurements.length > 0 ? (
-              droppedMeasurements.map((measurement) =>
-                measurement ? (
-                  <Box
-                    key={`fields-${measurement}`}
-                    border="1px solid #ccc"
-                    padding="10px"
-                    flex={1}
-                    marginRight="10px"
-                    borderRadius="6px"
-                  >
-                    <h3 style={{ margin: 0, textAlign: 'center', paddingBottom: '10px' }}>{`Fields for ${measurement}`}</h3>
+        {/* 为每个 measurement 渲染 fields 拖拽区域 */}
+        {droppedMeasurements.map((measurement) => (
+          <div key={`fields-${measurement}`}>
+            <h4>{`Fields for ${measurement}`}</h4>
+            <div style={{ display: 'flex' }}>
+              {/* 可用的 Fields */}
+              <div style={{ flex: 1, marginRight: '10px' }}>
+                <FieldList
+                    fields={measurementFields[measurement] || []}
+                    measurement={measurement}
+                    onFieldRemove={handleFieldRemove}
+                />
+              </div>
+              {/* 已选中的 Fields */}
+              <div style={{ flex: 1, marginLeft: '10px' }}>
+                <SelectedFieldList
+                    fields={selectedFields[measurement] || []}
+                    measurement={measurement}
+                    onFieldSelect={handleFieldSelect}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
 
-                    {/* Selected Fields */}
-                    <Box flex={1} mb={1.5} style={{ border: `1px solid rgba(204, 204, 204, 0.3)`, minHeight: '200px' }}>
-                      <SelectedFieldList
-                        fields={selectedFields[measurement] || []}
-                        measurement={measurement}
-                        onFieldSelect={handleFieldSelect}
-                      />
-                    </Box>
+        {/* 查询代码显示区域 */}
+        <div>
+          <h3>Generated Query Code:</h3>
+          <pre>{queryCode}</pre>
+        </div>
 
-                    {/* Available Fields */}
-                    <Box flex={1}>
-                      <FieldList
-                        fields={measurementFields[measurement] || []}
-                        measurement={measurement}
-                        onFieldRemove={handleFieldRemove}
-                      />
-                    </Box>
-                  </Box>
-                ) : null
-              )
-            ) : (
-              <Box
-                flex={1}
-                border="1px solid #ccc"
-                padding="10px"
-                marginRight="10px"
-                borderRadius="6px"
-                display="flex"
-                textAlign='center'
-                justifyContent="center"
-                alignItems="center"
-              >Please select Measurement(s)</Box>
-            )}
-
-
-
-            <Box
-              border="1px solid #ccc"
-              padding="10px"
-              flex={1}
-              borderRadius="6px"
+        {/* Time range selection area */}
+        <Box 
+          sx={{ 
+            width: '40%', 
+            padding: '2rem', 
+            backgroundColor: 'primary', 
+            borderRadius: '8px', 
+            boxShadow: 1 
+          }}
+        >
+          <Typography 
+            variant="h6" 
+            sx={{ textAlign: 'center', marginBottom: '1rem' }}
+          >
+            Select Time Range
+          </Typography>
+          <TimeRangeSelector onTimeRangeChange={setTimeRange} timeRange={timeRange} />
+          {/* {timeRange.start && timeRange.end && (
+            <div>
+              <h2>Selected Time Range:</h2>
+              <p>Start: {timeRange.start.format('YYYY-MM-DD HH:mm:ss')}</p>
+              <p>End: {timeRange.end.format('YYYY-MM-DD HH:mm:ss')}</p>
+            </div>
+          )} */}
+          <TextField
+            label="Dashboard Title"
+            variant="outlined"
+            fullWidth
+            value={title}
+            onChange={handleTitleChange}
+            error={!!error}
+            helperText={error || ''}
+          />
+          <Box sx={{ marginTop: '1rem', textAlign: 'center' }}>
+            <Button 
+              variant="contained" 
+              color="primary" 
+              onClick={createDashboard} 
+              disabled={loading}
             >
-              <h3
-                style={{ margin: 0, textAlign: 'center', paddingBottom: '10px' }}
-              >
-                Select Time Range
-              </h3>
-              <TimeRangeSelector onTimeRangeChange={setTimeRange} timeRange={timeRange} />
-
-
-              <TextField
-                label="Dashboard Title"
-                variant="outlined"
-                fullWidth
-                value={title}
-                onChange={handleTitleChange}
-                error={!!error}
-                helperText={error || ''}
-              />
-
-            <Box sx={{ marginTop: '1rem', textAlign: 'center' }}>
-              <Button 
-                variant="contained" 
-                color="primary" 
-                sx={{ padding: '12px 34px', fontSize: '14px' }}
-                onClick={createDashboard} 
-                disabled={loading}
-              >
-                {loading ? "Saving..." : "Save Dashboard"}
-              </Button>
-            </Box>
-            
-
-
-
-
-
-        {/* <FormControl fullWidth> */}
+              {loading ? "Saving..." : "Save Dashboard"}
+            </Button>
+          </Box>
+        </Box>
+        <Box sx={{ marginTop: '1rem', textAlign: 'center' }}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={Reset}
+              disabled={loading}
+            >
+              {loading ? "Creating..." : "Reset"}
+            </Button>
+        </Box>
+        <FormControl fullWidth>
         <InputLabel id="chart-type-label">Chart Type</InputLabel>
         <Select
           labelId="chart-type-label"
           value={chartType}
           onChange={handleChartTypeChange}
-          margin="normal"
-          style={{ marginBottom: '20px' }}
           fullWidth
         >
           {chartTypeList.map((type, index) => (
@@ -1190,12 +1212,7 @@ export default function DragAndDropComponent() {
             )}
           </Box>
           
-      {/* </FormControl> */}
-
-
-            </Box>
-          </Box>
-        </Box>
+      </FormControl>
       </div>
     </DndProvider>
   );

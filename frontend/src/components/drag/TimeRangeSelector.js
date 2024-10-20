@@ -22,22 +22,45 @@ function TimeRangeSelector({ onTimeRangeChange, timeRange }) {
     onTimeRangeChange({ start: startTime, end: endTime });
   };
 
+  // return (
+  //   <LocalizationProvider dateAdapter={AdapterDayjs}>
+  //     <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+  //       <DateTimePicker
+  //         label="Start Time"
+  //         value={startTime}
+  //         onChange={setStartTime}
+  //         renderInput={(params) => <TextField {...params} />}
+  //       />
+  //       <DateTimePicker
+  //         label="End Time"
+  //         value={endTime}
+  //         onChange={setEndTime}
+  //         renderInput={(params) => <TextField {...params} />}
+  //       />
+  //       <Button variant="contained" onClick={handleApply}>
+  //         Apply Time Range
+  //       </Button>
+  //     </div>
+  //   </LocalizationProvider>
+  // );
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-        <DateTimePicker
-          label="Start Time"
-          value={startTime}
-          onChange={setStartTime}
-          renderInput={(params) => <TextField {...params} />}
-        />
-        <DateTimePicker
-          label="End Time"
-          value={endTime}
-          onChange={setEndTime}
-          renderInput={(params) => <TextField {...params} />}
-        />
-        <Button variant="contained" onClick={handleApply}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'flex-start', alignItems: 'center', paddingBottom: '20px'  }}>
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+          <DateTimePicker
+            label="Start Time"
+            value={startTime}
+            onChange={setStartTime}
+            renderInput={(params) => <TextField {...params} />}
+          />
+          <DateTimePicker
+            label="End Time"
+            value={endTime}
+            onChange={setEndTime}
+            renderInput={(params) => <TextField {...params} />}
+          />
+        </div>
+        <Button variant="contained" sx={{ padding: '11px 30px', fontSize: '14px' }} onClick={handleApply}>
           Apply Time Range
         </Button>
       </div>

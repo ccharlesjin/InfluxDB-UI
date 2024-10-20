@@ -546,7 +546,7 @@ app.post('/api/save-dashboard', verifyToken, async (req, res) => {
 
     // 使用 d-solo 和 panelId 生成单个面板的 URL
     const panelId = 1; // 替换为你实际的 panelId
-    const soloPanelUrl = `${Grafana_URL}/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light&from=${from}&to=${to}&t=${Date.now()}`;
+    const soloPanelUrl = `https://localhost:3001/grafana/d-solo/${response.data.uid}?orgId=1&panelId=${panelId}&theme=light&from=${from}&to=${to}&t=${Date.now()}`;
     console.log('Dashboard saved, Dashboard URL:', soloPanelUrl);
     res.status(200).json({ dashboardUrl: soloPanelUrl });
 
@@ -606,7 +606,7 @@ app.post('/api/update-dashboard', verifyToken, async (req, res) => {
       },
     });
     // 使用 d-solo 和 panelId 生成单个面板的 URL
-    const soloPanelUrl = `${Grafana_URL}/d-solo/${updateResponse.data.uid}?orgId=1&panelId=1&theme=light&from=${from}&to=${to}&t=${Date.now()}`;
+    const soloPanelUrl = `https://localhost:3001/grafana/d-solo/${updateResponse.data.uid}?orgId=1&panelId=1&theme=light&from=${from}&to=${to}&t=${Date.now()}`;
 
     console.log('Dashboard updated:', updateResponse.data);
     res.json({
