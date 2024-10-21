@@ -470,41 +470,12 @@ app.get('/api/fields', verifyToken, async (req, res) => {
   }
 });
 
-// app.post('/query', (req, res) => {
-//   const { bucket, fields, timeRange } = req.body;
-
-//   // Example Flux query for temperature and humidity
-//   const fluxQuery = `
-//     from(bucket: "${bucket}")
-//       |> range(start: ${timeRange.start}, stop: ${timeRange.end})
-//       |> filter(fn: (r) => r._measurement == "weather")
-//       |> filter(fn: (r) => r._field == "temperature" or r._field == "humidity")
-//   `;
-
-//   queryApi.queryRows(fluxQuery, {
-//     next(row, tableMeta) {
-//       const data = tableMeta.toObject(row);
-//       console.log(data); // You can also send this back to the client
-//     },
-//     error(error) {
-//       console.error('Error querying InfluxDB:', error);
-//       res.status(500).send('Error querying InfluxDB');
-//     },
-//     complete() {
-//       res.status(200).send('Query completed');
-//     },
-//   });
-// });
-
 app.post('/api/save-dashboard', verifyToken, async (req, res) => {
   try {
     const Grafana_datasourceID = req.user.Grafana_datasourceID;
-    const { bucket, windowPeriod, from, to, fluxQuery, title, type } = req.body;
+    const { from, to, fluxQuery, title, type } = req.body;
     const { influxDB_token } = req.user;
-    const fromSeconds = Math.floor(from / 1000);  // 转换为秒
-    const toSeconds = Math.floor(to / 1000);      // 转换为秒
 
-    console.log('Saving dashboard with the following params:', { bucket, windowPeriod, from, to, fromSeconds, toSeconds });
     const dashboardData = {
       dashboard: {
         id: null,
@@ -627,12 +598,9 @@ app.post('/api/execute-query', verifyToken, async (req, res) => {
   try {
     const Grafana_datasourceID = req.user.Grafana_datasourceID;
     const { influxDB_token } = req.user;
-    const { bucket, windowPeriod, from, to, fluxQuery, type } = req.body;
-    const fromSeconds = Math.floor(from / 1000);
-    const toSeconds = Math.floor(to / 1000);
+    const { from, to, fluxQuery, type } = req.body;
 
     // Your existing logic for creating the dashboard
-    console.log('Creating dashboard with the following params:', { bucket, windowPeriod, from, to, fromSeconds, toSeconds, fluxQuery });
     
     const dashboardData = {
       dashboard: {
