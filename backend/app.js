@@ -578,7 +578,7 @@ app.post('/api/update-dashboard', verifyToken, async (req, res) => {
     });
     // 使用 d-solo 和 panelId 生成单个面板的 URL
     const soloPanelUrl = `https://localhost:3001/grafana/d-solo/${updateResponse.data.uid}?orgId=1&panelId=1&theme=light&from=${from}&to=${to}&t=${Date.now()}`;
-
+    console.log('Dashboard updated, Dashboard URL:', soloPanelUrl);
     console.log('Dashboard updated:', updateResponse.data);
     res.json({
       message: 'Dashboard updated successfully',
@@ -682,8 +682,9 @@ app.get('/api/getDashboardType/:uid', verifyToken, async (req, res) => {
 
 // 更新Dashboard的图表类型
 app.post('/api/updateDashboardType', verifyToken, async (req, res) => {
+  const influxDB_token = req.user.influxDB_token;
   const { dashboardUid, chartType, from, to } = req.body;
-  console.log('Updating dashboard with the following params:', { dashboardUid, chartType, from, to });
+  console.log('Updating dashboard type with the following params:', { dashboardUid, chartType, from, to });
   try {
     // 获取当前Dashboard的数据
     const dashboardResponse = await axios.get(`${Grafana_URL}/api/dashboards/uid/${dashboardUid}`, {
@@ -695,7 +696,7 @@ app.post('/api/updateDashboardType', verifyToken, async (req, res) => {
     });
 
     let dashboard = dashboardResponse.data.dashboard;
-
+    console.log('Dashboard data:', dashboard);
     // 更新图表类型（假设更新第一个panel）
     dashboard.panels.forEach(panel => {
       panel.type = chartType;  // 更新图表类型
@@ -705,6 +706,7 @@ app.post('/api/updateDashboardType', verifyToken, async (req, res) => {
     const updatedDashboard = {
       dashboard: dashboard,
       overwrite: true,  // 确保覆盖现有的Dashboard
+      folderUid: influxDB_token.slice(0,10)  // 确保传递正确的 folderUid
     };
 
     const response = await axios.post(`${Grafana_URL}/api/dashboards/db`, updatedDashboard, {
@@ -714,6 +716,7 @@ app.post('/api/updateDashboardType', verifyToken, async (req, res) => {
         'Content-Type': 'application/json',
       },
     });
+    console.log('Dashboard updated:', response.data);
 
     const timestamp = new Date().getTime();
     const soloPanelUrl = `https://localhost:3001/grafana/d-solo/${response.data.uid}?orgId=1&panelId=1&theme=light&from=${from}&to=${to}&nocache=${timestamp}`;
