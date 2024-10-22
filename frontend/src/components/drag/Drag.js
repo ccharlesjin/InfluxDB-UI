@@ -264,6 +264,7 @@ export default function DragAndDropComponent() {
   const [isRestoring, setIsRestoring] = useState(false);  // 是否正在复现状态
   const [isEditing, setIsEditing] = useState(false);  // 是否处于编辑模式
   // const [overwrite, setOverwrite] = useState(false);  // 后端 overwrite 标志
+  const [isDownloading, setIsDownloading] = useState(false);
   const [chartTypeList] = useState([
     'graph',
     'timeseries',   // Time series
@@ -856,11 +857,45 @@ export default function DragAndDropComponent() {
     });
 };
 
+const downloadImage = async () => {
+  // 修改下载状态为 true，显示 “Downloading...” 并禁用按钮
+  setIsDownloading(true);
+  const renderUrl = iframeUrl.replace('/grafana/', '/grafana/render/');
+  console.log('renderUrl:', renderUrl);
+
+  try {
+    // 使用 axios 下载图片
+    const response = await axios.get(renderUrl, {
+      responseType: 'blob',
+      withCredentials: true,  // 如果需要凭据
+    });
+
+    if (response.status !== 200) {
+      throw new Error('Failed to fetch image');
+    }
+
+    const blob = response.data;
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = 'rendered-chart.png';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Error downloading the image:', error);
+  } finally {
+    // 下载完成后恢复按钮状态
+    setIsDownloading(false);
+  }
+};
+
   return (
     <DndProvider backend={HTML5Backend}>
       <div>
         {/* Visualization area */}
-        <Box
+        {/* <Box
           display="flex"
           justifyContent="center"
           alignItems="center"
@@ -891,8 +926,41 @@ export default function DragAndDropComponent() {
               <Typography variant="h6">No data to display</Typography>
             )
           )}
-        </Box>
+        </Box> */}
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          width="100%"
+          height="400px"
+          borderRadius="6px"
+          boxShadow="0px 2px 10px rgba(0,0,0,0.2)"
+          bgcolor={theme.palette.background.default}
+          p={2}
+          mb={2}
+        >
+          <Box display={isQueryVisible ? 'block' : 'none'} width="100%" height="100%">
+            {queryCode ? (
+              <pre>{queryCode}</pre>
+            ) : (
+              <Typography variant="h6">No query code to display</Typography>
+            )}
+          </Box>
 
+          <Box display={!isQueryVisible ? 'block' : 'none'} width="100%" height="100%">
+            {iframeUrl ? (
+              <iframe
+                src={iframeUrl}
+                width="100%"
+                height="100%"
+                title="Grafana Panel"
+                style={{ border: 'none' }}
+              />
+            ) : (
+              <Typography variant="h6">No data to display</Typography>
+            )}
+          </Box>
+        </Box>
         <Box
   flex={1}
   height="110px"
@@ -980,19 +1048,34 @@ export default function DragAndDropComponent() {
 
     <Button
       variant="contained"
+      size="small"
       onClick={() => setIsQueryVisible((prev) => !prev)}
       sx={{ textAlign: 'center', marginBottom: '8px' }}
     >
       {isQueryVisible ? 'Show Graph' : 'Show Query'}
     </Button>
+    
     <Button
       variant="contained"
       color="primary"
+      size="small"
       onClick={Reset}
       disabled={loading}
+      sx={{ textAlign: 'center', marginBottom: '8px' }}
     >
       {loading ? "Creating..." : "Reset"}
     </Button>
+
+    <Button 
+        variant="contained" 
+        color="primary" 
+        size="small"
+        onClick={downloadImage} 
+        disabled={isDownloading || !iframeUrl}  // 按钮在下载中被禁用
+        // sx={{ textAlign: 'center', marginBottom: '8px' }}
+      >
+        {isDownloading ? 'Downloading...' : 'Download'}
+      </Button>    
   </Box>
   
 </Box>

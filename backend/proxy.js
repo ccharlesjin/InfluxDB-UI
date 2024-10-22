@@ -60,6 +60,17 @@ app.use('/grafana/', (req, res) => {
     
     const protocol = req.protocol || 'https';
 
+    // 设置 CORS 头部
+    res.setHeader('Access-Control-Allow-Origin', 'https://localhost:3000'); // 前端地址
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Origin, Authorization, Content-Type, Accept');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+    // 如果是OPTIONS预检请求，立即返回成功响应
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+
     // 转发普通 HTTP 请求
     proxy.web(req, res, {
         target: 'https://localhost:4000/grafana/',
@@ -68,7 +79,6 @@ app.use('/grafana/', (req, res) => {
         agent: agent,
         headers: {
             'X-WEBAUTH-USER': req.headers['X-WEBAUTH-USER'], // 设置用户头部
-            // 'X-WEBAUTH-USER': "admin", // 设置用户头部
             'X-Real-IP': req.connection.remoteAddress,
             'X-Forwarded-For': req.headers['x-forwarded-for'] || req.connection.remoteAddress,
             'X-Forwarded-Proto': protocol // 确保有一个默认值
