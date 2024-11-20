@@ -1,3 +1,60 @@
+# **No-Code Solution for InfluxDB Operations**
+
+## **Project Overview**  
+This project introduces a **No-Code platform** designed to simplify database operations for **InfluxDB**, catering to users with minimal technical expertise. By replacing complex Flux queries with an intuitive drag-and-drop interface, the platform enhances user experience and efficiency in managing time-series data.
+
+---
+
+## **Key Features**
+- **Drag-and-Drop Interface**  
+  - Built with **React** and **MUI**, the platform provides an interactive drag-and-drop interface.  
+  - Automatically generates Flux queries, reducing the need for manual coding.  
+
+- **Data Visualization**  
+  - Integrates **Grafana Dashboards** (via iframe) to deliver real-time data insights and interactions.  
+
+- **Backend Integration**  
+  - Powered by **Node.js**, the backend seamlessly interacts with **InfluxDB** and **Grafana APIs** to handle authentication, database operations, and query management.  
+
+- **Security**  
+  - Implements **JWT-based authentication** and HTTPS to ensure secure data exchange.  
+
+- **Proxy Module**  
+  - A **Node.js reverse proxy** module manages communication between the frontend and backend, enabling secure and efficient cross-origin requests.  
+
+---
+
+## **Tech Stack**
+### **Frontend**  
+- React, MUI, CSS, HTML  
+
+### **Backend**  
+- Node.js, Express  
+
+### **Database**  
+- InfluxDB  
+
+### **Tools**  
+- Grafana, JWT, Docker, Nginx  
+
+---
+
+## **Highlights**
+1. **User-Friendly**  
+   - Designed for non-technical users to interact with **InfluxDB** without writing code.  
+
+2. **Efficiency**  
+   - Simplifies workflows, reducing manual effort and errors.  
+
+3. **Secure**  
+   - Provides secure data interaction through robust authentication and HTTPS protocols.  
+
+---
+
+Feel free to contribute or explore the project! If you have any questions, contact me via zongxijin@qq.com.
+
+---
+
 # How to Run
 
 ## Backend
@@ -5,15 +62,21 @@
 2. Run "npm install"
 3. Run "npm start"
 
+## Proxy
+1. Open another terminal
+2. Go to Backend directory
+3. Run "node proxy.js"
+
 ## Frontend
 1. Open another terminal
 2. Go to Frontend directory
 3. Run "npm install"
 4. Run "npm start"
 
+# Others
 
-
-
+Remember to start Grafana service before running frontend.
+Watch the demo video in the repository or from YouTube: [Demo Video](https://youtu.be/2_uBunPeDrQ) for more details.
 
 # Getting Started with Create React App
 
@@ -26,7 +89,7 @@ In the project directory, you can run:
 ### `npm start`
 
 Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+Open [https://localhost:3000](https://localhost:3000) to view it in your browser.
 
 The page will reload when you make changes.\
 You may also see any lint errors in the console.
