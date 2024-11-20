@@ -20,7 +20,7 @@ const Navbar = () => {
         localStorage.removeItem('authToken');  // 假设你存储了authToken
 
         // 重定向到登录页
-        navigate('/login');
+        navigate('/');
     };
 
     return (
@@ -46,10 +46,10 @@ const Navbar = () => {
             >
                 {/* 搜索框 */}
                 <Box display='flex' backgroundColor={colors.primary[400]} borderRadius='6px'>
-                    <InputBase sx={{ ml: 2, flex: 1 }} placeholder='Search' />
-                    <IconButton type='button' sx={{ p: 1 }}>
+                    {/* <InputBase sx={{ ml: 2, flex: 1 }} placeholder='Search' /> */}
+                    {/* <IconButton type='button' sx={{ p: 1 }}>
                         <SearchIcon />
-                    </IconButton>
+                    </IconButton> */}
                 </Box>
 
                 {/* 右侧图标 */}
