@@ -75,7 +75,7 @@ Feel free to contribute or explore the project! If you have any questions, conta
 
 # Others
 
-Remember to start Grafana service before running frontend.
+Remember to start Grafana service before running frontend.\
 Watch the demo video in the repository or from YouTube: [Demo Video](https://youtu.be/2_uBunPeDrQ) for more details.
 
 # Getting Started with Create React App
