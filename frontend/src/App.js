@@ -35,9 +35,9 @@ const AppContent = ({ setLoading, loading }) => {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<SignIn setLoading={setLoading} loading={loading} />} />
+        <Route path="/signin" element={<SignIn setLoading={setLoading} loading={loading} />} />
         <Route path="/dashboard" element={<Drag />} />
-        <Route path="/signin" element={<SignInTest />} />
+        <Route path="/" element={<SignInTest />} />
       </Routes>
     </Layout>
   );

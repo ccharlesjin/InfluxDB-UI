@@ -18,6 +18,7 @@ import getSignInTheme from './theme/getSignInTheme';
 import TemplateFrame from './TemplateFrame';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import axios from 'axios';
 
 const Card = styled(MuiCard)(({ theme }) => ({
   display: 'flex',
@@ -107,24 +108,29 @@ export default function SignIn() {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
 
-    const username = data.get('username');
-    const password = data.get('password');
+    // Extract form values
+    const InfluxDB_URL = data.get('InfluxDB_URL');
+    const InfluxDB_token = data.get('InfluxDB_token');
+    const Organization_name = data.get('Organization_name');
 
-    console.log({ username, password });
+    // Prepare the request payload
+    const payload = {
+      InfluxDB_URL,
+      InfluxDB_token,
+      Organization_name
+    };
 
     let isValid = validateInputs();
 
     if (isValid) {
       try {
-        const response = await fetch('http://localhost:5001/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password }),
+        const response = await axios.post('https://localhost:5001/api/authenticate', payload, {
+          withCredentials: true,  // 在请求配置中添加 withCredentials
         });
 
-        const result = await response.json();
+        const result = response.data;
 
-        if (response.ok) {
+        if (response.status === 200) {
           console.log(t('Login successful. Redirecting to Dashboard...'));
           navigate('/dashboard');
         } else {
@@ -132,6 +138,7 @@ export default function SignIn() {
           alert(t('Login failed:') + ' ' + result.message);
         }
       } catch (error) {
+        console.log('error', error);
         console.error(t('An error occurred during login. Please try again later.'), error);
         alert(t('An error occurred during login. Please try again later.'));
       }
@@ -139,13 +146,13 @@ export default function SignIn() {
   };
 
   const validateInputs = () => {
-    const usernameInput = document.getElementById('username');
-    const passwordInput = document.getElementById('password');
-    const organizationInput = document.getElementById('organization');
+    const usernameInput = document.getElementById('InfluxDB_URL');
+    const passwordInput = document.getElementById('InfluxDB_token');
+    const organizationInput = document.getElementById('Organization_name');
 
     let isValid = true;
 
-    if (!usernameInput.value || !usernameInput.value.match(/^http?:\/\/[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$/)) {
+    if (!usernameInput.value || !usernameInput.value.match(/^http?:\/\/(?:localhost|\d{1,3}(?:\.\d{1,3}){3}|[\w.-]+(?:\.[\w\.-]+)+)(?::\d+)?(?:[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]*)$/)) {
       setUsernameError(true);
       setUsernameErrorMessage(t('Please enter a valid username.'));
       isValid = false;
@@ -207,13 +214,13 @@ export default function SignIn() {
               }}
             >
               <FormControl>
-                <FormLabel htmlFor="username">{t('URL')}</FormLabel>
+                <FormLabel htmlFor="InfluxDB_URL">{t('InfluxDB_URL')}</FormLabel>
                 <TextField
                   error={usernameError}
                   helperText={usernameErrorMessage}
-                  id="username"
+                  id="InfluxDB_URL"
                   type="url"
-                  name="username"
+                  name="InfluxDB_URL"
                   placeholder={t('Enter InfluxDB URL')}
                   autoComplete="url"
                   autoFocus
@@ -224,14 +231,14 @@ export default function SignIn() {
                 />
               </FormControl>
               <FormControl>
-                <FormLabel htmlFor="password">{t('Password')}</FormLabel>
+                <FormLabel htmlFor="InfluxDB_token">{t('InfluxDB_token')}</FormLabel>
                 <TextField
                   error={passwordError}
                   helperText={passwordErrorMessage}
-                  name="password"
+                  name="InfluxDB_token"
                   placeholder={t("Enter InfluxDB Token")}
                   type="text"
-                  id="password"
+                  id="InfluxDB_token"
                   //autoComplete="current-password"
                   autoComplete='off'
                   required
@@ -241,14 +248,14 @@ export default function SignIn() {
                 />
               </FormControl>
               <FormControl>
-                <FormLabel htmlFor="organization">{t('Organization')}</FormLabel>
+                <FormLabel htmlFor="Organization_name">{t('Organization')}</FormLabel>
                 <TextField
                   error={organizationError}
                   helperText={organizationErrorMessage}
-                  name="organization"
+                  name="Organization_name"
                   placeholder={t("Enter InfluxDB Organization")}
                   type="text"
-                  id="organization"
+                  id="Organization_name"
                   //autoComplete="current-password"
                   autoComplete='off'
                   required

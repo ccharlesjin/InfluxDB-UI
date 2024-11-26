@@ -3,7 +3,14 @@
 ## **Project Overview**  
 This project introduces a **No-Code platform** designed to simplify database operations for **InfluxDB**, catering to users with minimal technical expertise. By replacing complex Flux queries with an intuitive drag-and-drop interface, the platform enhances user experience and efficiency in managing time-series data.
 
----
+### Login Page 
+![image](https://github.com/user-attachments/assets/763e90a1-9ad6-4341-809a-720e91794730)
+
+### Main Dashboard
+![image](https://github.com/user-attachments/assets/aab59279-9bb2-4d0b-a4a6-cf7f1e84ca70)
+
+### Data Visualization
+![image](https://github.com/user-attachments/assets/b8d62b1e-a919-4b8b-9cf5-35ae2ab45a82)
 
 ## **Key Features**
 - **Drag-and-Drop Interface**  
@@ -22,8 +29,6 @@ This project introduces a **No-Code platform** designed to simplify database ope
 - **Proxy Module**  
   - A **Node.js reverse proxy** module manages communication between the frontend and backend, enabling secure and efficient cross-origin requests.  
 
----
-
 ## **Tech Stack**
 ### **Frontend**  
 - React, MUI, CSS, HTML  
@@ -37,8 +42,6 @@ This project introduces a **No-Code platform** designed to simplify database ope
 ### **Tools**  
 - Grafana, JWT, Docker, Nginx  
 
----
-
 ## **Highlights**
 1. **User-Friendly**  
    - Designed for non-technical users to interact with **InfluxDB** without writing code.  
@@ -49,11 +52,7 @@ This project introduces a **No-Code platform** designed to simplify database ope
 3. **Secure**  
    - Provides secure data interaction through robust authentication and HTTPS protocols.  
 
----
-
 Feel free to contribute or explore the project! If you have any questions, contact me via zongxijin@qq.com.
-
----
 
 # How to Run
 
